@@ -12,4 +12,3 @@ if __name__ == "__main__":
     initialize_astro_data()
     import_market_data(ticker)
     forecast(ticker)
-

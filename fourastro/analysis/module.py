@@ -99,26 +99,38 @@ def set_all_seeds(seed_value=42):
     # TensorFlow/Keras randomness
     tf.random.set_seed(seed_value)
     
-def create_dnn_model(X_train_scaled):
+def improved_dnn_model(X_train_scaled):
     set_all_seeds()
-    model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, activation='relu', input_shape=(X_train_scaled.shape[1],)), # <-- Add L2 here
-        tf.keras.layers.Dropout(0.1),     
-
-        tf.keras.layers.Dense(64, activation='relu'), # <-- Add L2 here        
-        tf.keras.layers.Dropout(0.1),  
-        tf.keras.layers.Dense(64, activation='relu'), # <-- Add L2 here        
-        tf.keras.layers.Dropout(0.1),  
-        tf.keras.layers.Dense(64, activation='relu'), # <-- Add L2 here        
-        tf.keras.layers.Dropout(0.1),  
- 
-
-        tf.keras.layers.Dense(64, activation='tanh'), # <-- Add L2 here
-        tf.keras.layers.Dense(1)
-    ])
-    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    # Number of input features is X_train_scaled.shape[1] (14 features)
+    input_dim = X_train_scaled.shape[1] 
     
-    return model 
+    model = tf.keras.Sequential([
+        # Initial wide layer to capture complex interactions
+        tf.keras.layers.Dense(64, activation='relu', input_shape=(input_dim,)), 
+        tf.keras.layers.BatchNormalization(), # Add Batch Normalization
+        tf.keras.layers.Dropout(0.1), # Increase dropout slightly
+        
+        # Deeper, progressively narrowing layers
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dropout(0.1),
+        
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dropout(0.1),
+
+        # Final Feature Compression
+        # Change Tanh to a final ReLU/SELU before output, or keep Tanh
+        tf.keras.layers.Dense(64, activation='relu'), 
+        tf.keras.layers.Dropout(0.1),
+        
+        # Output layer (Predicts Y(t) which is bounded [-1, 1] but usually close to 0)
+        # Using Tanh on the output forces the prediction to be in [-1, 1], matching Y(t)'s definition
+        tf.keras.layers.Dense(1, activation='tanh') 
+    ])
+    
+    # Use a more sophisticated optimizer like Nadam or AdamW
+    model.compile(optimizer='nadam', loss='mse', metrics=['mae']) #
+    
+    return model
 
     
 def forecast(ticker):
@@ -152,7 +164,7 @@ def forecast(ticker):
         mode='min'
     )
 
-    forecasting_model = create_dnn_model(X_train_scaled)
+    forecasting_model = improved_dnn_model(X_train_scaled)
          
     forecasting_model.fit(
         X_train_scaled, Y_train_scaled,
@@ -166,8 +178,18 @@ def forecast(ticker):
     loss, mae = forecasting_model.evaluate(X_test_scaled, Y_test_scaled, verbose=0)
     y_predict = forecasting_model.predict(X_test_scaled)
 
-    print("y_predict_var", y_predict.var())
-    print("y_test_var", Y_test_scaled.var())
-    print(f"Test Loss: {loss:.4f}, Test MAE: {mae:.4f}")
+    y_predict_var = np.var(y_predict.flatten())
+    Y_test_scaled_var = np.var(Y_test_scaled.to_numpy().flatten())
 
+    result = pd.DataFrame({
+        'y_predict': y_predict_var,
+        'y_test': Y_test_scaled_var,
+        "test_loss": loss,
+        "test_mae": mae
+    }, index=[1])
+
+    print("| ticker | Predicted Variance | Actual Variance | Test Loss (MSE) | Test MAE |")
+    print("|---|---|---|---|---|")
+    print(f"| {ticker} | {y_predict_var:.6f} | {Y_test_scaled_var:.6f} | {loss:.6f} | {mae:.6f} |")
+    print()
     
