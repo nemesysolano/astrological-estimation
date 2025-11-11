@@ -5,8 +5,23 @@ import pandas as pd
 import numpy as np
 import mlx.core as mx
 
-#(id, name, mass relative to earth, distance from earth)
-planets = ((1, 'Mercury', 0.0553, 0.61), (2, 'Venus', 0.815, 0.28), (4, 'Mars', 0.107, 0.52), (5, 'Jupiter', 318, 4.2), (6, 'Saturn', 95.2, 8.52), (7, 'Uranus', 14.5, 18.2), (7, 'Neptune', 17.1, 29.09))
+#(
+# id, 
+# name, 
+# mass relative to earth, 
+# distance from earth, 
+# orbital period respect to earth
+# )
+
+planets = (
+    (1, 'Mercury', 0.0553, 0.61, 2*np.pi * 0.24),
+    (2, 'Venus', 0.815, 0.28, 2*np.pi * 0.62),
+    (4, 'Mars', 0.107, 0.52, 2*np.pi * 1.88),
+    (5, 'Jupiter', 318, 4.2, 2*np.pi * 11.86),
+    (6, 'Saturn', 95.2, 8.52, 2*np.pi * 29.46),
+    (7, 'Uranus', 14.5, 18.2, 2*np.pi * 84.02),
+    (7, 'Neptune', 17.1, 29.09, 2*np.pi * 164.79)
+)
 start_date = "1970-01-01"
 end_date = "2070-01-01"
 module_dir = os.path.dirname(__file__)
@@ -45,7 +60,7 @@ def initialize_astro_data():
         os.makedirs(data_dir)
 
     for planet in planets:
-        planet_id, planet_name, mass, dist = planet
+        planet_id, planet_name, mass, dist, period = planet
         ephemerides_output_file, elements_output_file = download_astro_data(planet_id, planet_name, data_dir)
         ephemerides_data = pd.read_csv(ephemerides_output_file)
         ephemerides_data["datetime_str"] = transform_eph_time(ephemerides_data["datetime_str"])
@@ -56,8 +71,9 @@ def initialize_astro_data():
         elements_data.set_index("datetime_str", inplace=True)
         
         astro_constants[planet_name] = {
+            "b": elements_data.loc[elements_data.index[0]]['n'],
             "λ": ephemerides_data['EclLon'],
-            "c": mass / (dist*dist),
-            "p": elements_data['P']['1970-01-01']
+            "g": mass / (dist*dist),
+            "T": period
         }
     
