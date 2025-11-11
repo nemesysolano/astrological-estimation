@@ -1,4 +1,6 @@
 
+import os
+import random
 from market import load_market_data
 import pandas as pd 
 import astro
@@ -87,13 +89,31 @@ def define_variables(train_data, validation_data, test_data, column_name):
         X_scaler, Y_scaler
     )
 
+def set_all_seeds(seed_value=42):
+    """Sets seeds for reproducibility."""
+    os.environ['PYTHONHASHSEED'] = str(seed_value)
+    # Python randomness
+    random.seed(seed_value)
+    # NumPy randomness
+    np.random.seed(seed_value)
+    # TensorFlow/Keras randomness
+    tf.random.set_seed(seed_value)
+    
 def create_dnn_model(X_train_scaled):
+    set_all_seeds()
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, activation='relu', input_shape=(X_train_scaled.shape[1],),kernel_regularizer=l2(0.0005)), # <-- Add L2 here
-        tf.keras.layers.Dropout(0.1),
-        tf.keras.layers.Dense(32, activation='relu',kernel_regularizer=l2(0.0005)), # <-- Add L2 here
-        tf.keras.layers.Dropout(0.1),
-        tf.keras.layers.Dense(16, activation='relu',kernel_regularizer=l2(0.0005)), # <-- Add L2 here
+        tf.keras.layers.Dense(64, activation='relu', input_shape=(X_train_scaled.shape[1],)), # <-- Add L2 here
+        tf.keras.layers.Dropout(0.1),     
+
+        tf.keras.layers.Dense(64, activation='relu'), # <-- Add L2 here        
+        tf.keras.layers.Dropout(0.1),  
+        tf.keras.layers.Dense(64, activation='relu'), # <-- Add L2 here        
+        tf.keras.layers.Dropout(0.1),  
+        tf.keras.layers.Dense(64, activation='relu'), # <-- Add L2 here        
+        tf.keras.layers.Dropout(0.1),  
+ 
+
+        tf.keras.layers.Dense(64, activation='tanh'), # <-- Add L2 here
         tf.keras.layers.Dense(1)
     ])
     model.compile(optimizer='adam', loss='mse', metrics=['mae'])
@@ -137,7 +157,7 @@ def forecast(ticker):
     forecasting_model.fit(
         X_train_scaled, Y_train_scaled,
         epochs=100,
-        batch_size=16,
+        batch_size=32,
         validation_data=(X_val_scaled, Y_val_scaled),
         callbacks=[model_checkpoint_callback]
     )
