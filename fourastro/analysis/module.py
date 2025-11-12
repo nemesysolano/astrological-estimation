@@ -1,4 +1,3 @@
-
 import os
 import random
 from market import load_market_data
@@ -25,15 +24,23 @@ def clean_nan_and_inf(dataset):
 def pct_difference(a, b):
     return 2*(b - a) / (a+b)
 
-def define_X(Y): # (A=constant, t=current time, T=Period, N=Numbert of terms, )    
+def define_X(Y_combined, atr): 
     astro_constants = astro.astro_constants
-    X = []
-    columns = [ f"A_{i}" for i in range(len(astro.planets) * 2)]
+    X_astro = []
+    
+    # Start columns with the two lagged features
+    columns = ['ψ_1', 'ψ_2', 'ATR'] 
+    
+    # Append the names for the astrological features
+    columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
 
-    for t in Y.index:        
-        x = []
+    for t in Y_combined.index: 
+        # NEW STEP: Prepend the two lagged Y values
+        x = [Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], atr[t]]
+        
         k = 1
         for planet in astro.planets:
+            # Astrological calculation remains the same, calculating for time t
             planet_name = planet[1]
             λ = astro_constants[planet_name]['λ'][t]
             a = astro_constants[planet_name]['g']
@@ -43,34 +50,68 @@ def define_X(Y): # (A=constant, t=current time, T=Period, N=Numbert of terms, )
             x.append(a * np.cos(f * λ))
             x.append(b * np.sin(f * λ))
             k+=1
+        X_astro.append(x)        
 
-        X.append(x)        
-
-    X = pd.DataFrame(X, index=Y.index, columns=columns)
+    X = pd.DataFrame(X_astro, index=Y_combined.index, columns=columns)
+    
+    # The target is still Y(t), which is column 'ψ'
     return X
 
 def define_Y(dataset, column_name):
+    # This assumes dataset is sorted by time ascendingly
+    
+    # Calculate Y(t)
     upper_one = lambda v: np.minimum(1, v)
-                                                      
-    s_index = dataset.index[:-1].copy()
-    current_price = dataset[column_name].copy().iloc[:-1].values
-    previous_price = dataset[column_name].copy().iloc[1:].values
-    current_volume = dataset['Volume'].copy().iloc[:-1].values
-    previous_volume = dataset['Volume'].copy().iloc[1:].values
+    
+    # We must align p_t with p_{t-1} and v_t with v_{t-1}
+    # A single index array for the result Y(t)
+    s_index = dataset.index[1:].copy() 
+    
+    # p_t: price at time t (starts from second element)
+    current_price = dataset[column_name].copy().iloc[1:].values
+    # p_{t-1}: price at time t-1 (starts from first element)
+    previous_price = dataset[column_name].copy().iloc[:-1].values 
+    
+    # v_t: volume at time t
+    current_volume = dataset['Volume'].copy().iloc[1:].values
+    # v_{t-1}: volume at time t-1
+    previous_volume = dataset['Volume'].copy().iloc[:-1].values
 
     price_pct_diff = pct_difference(previous_price, current_price)
-    volume_exp_diff = upper_one(previous_volume / current_volume)
-    Y = pd.DataFrame(price_pct_diff *volume_exp_diff , index = s_index, columns=['ψ'])
-    return Y 
+    # The volume component of Y(t)
+    volume_exp_diff = upper_one(current_volume / previous_volume) 
+    
+    # Y(t)
+    Y = pd.DataFrame(price_pct_diff * volume_exp_diff, index=s_index, columns=['ψ'])
+    
+    # ----------------------------------------------------
+    # NEW STEP: Create Y(t-1) and Y(t-2)
+    Y_lag1 = Y['ψ'].shift(periods=1)
+    Y_lag1.name = 'ψ_1'
+    
+    Y_lag2 = Y['ψ'].shift(periods=2) # NEW: Shift by 2 periods
+    Y_lag2.name = 'ψ_2'
+    
+    # Combine Y(t), Y(t-1), and Y(t-2)
+    Y_combined = pd.concat([Y, Y_lag1, Y_lag2], axis=1)
+    
+    # Remove the first two rows where Y(t-1) or Y(t-2) are NaN
+    Y_combined.dropna(inplace=True)
+    
+    return Y_combined
 
 def define_variables(train_data, validation_data, test_data, column_name):    
-    Y_train_unscaled = define_Y(train_data, column_name)
-    Y_val_unscaled = define_Y(validation_data, column_name)
-    Y_test_unscaled = define_Y(test_data, column_name)
+    Y_train_combined = define_Y(train_data, column_name)
+    Y_val_combined = define_Y(validation_data, column_name)
+    Y_test_combined = define_Y(test_data, column_name)
 
-    X_train_unscaled = define_X(Y_train_unscaled)
-    X_val_unscaled = define_X(Y_val_unscaled)
-    X_test_unscaled = define_X(Y_test_unscaled)
+    Y_train_unscaled = Y_train_combined['ψ']
+    Y_val_unscaled = Y_val_combined['ψ']
+    Y_test_unscaled =Y_test_combined['ψ']
+
+    X_train_unscaled = define_X(Y_train_combined, train_data['ATR'])
+    X_val_unscaled = define_X(Y_val_combined, validation_data['ATR'])
+    X_test_unscaled = define_X(Y_test_combined, test_data['ATR'])
 
     X_scaler = StandardScaler()
     X_train_scaled = X_scaler.fit_transform(X_train_unscaled)
@@ -133,8 +174,23 @@ def improved_dnn_model(X_train_scaled):
     return model
 
     
+def add_atr_to_dataframe(data, window=14):
+    high_low = data['High'] - data['Low']
+    high_close_prev = np.abs(data['High'] - data['Close'].shift(1))
+    low_close_prev = np.abs(data['Low'] - data['Close'].shift(1))
+
+    true_range = pd.DataFrame({
+        'high_low': high_low,
+        'high_close_prev': high_close_prev,
+        'low_close_prev': low_close_prev
+    }).max(axis=1)
+
+    # Calculate Average True Range (ATR)
+    data['ATR'] = true_range.ewm(span=window, adjust=False).mean()
+    return data
+
 def forecast(ticker):
-    data = clean_nan_and_inf(load_market_data(ticker))
+    data = add_atr_to_dataframe(clean_nan_and_inf(load_market_data(ticker)))
 
     # Split index into 70% 20% 10% respectively for train, validate and test
     data_index = data.index
@@ -153,8 +209,6 @@ def forecast(ticker):
     
     X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, 'Close')
     
-
-
     # Define ModelCheckpoint callback to save the best model
     checkpoint_filepath = 'best_model.keras'
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(

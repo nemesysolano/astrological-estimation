@@ -12,12 +12,13 @@ This oscillator detect strong bullish (${Y(t) \rarr 1}$) or bearish (${Y(t) \rar
 We define ${L(t)}$ the **price-volume strength** estimator as a neural network whose input (namely ${X}$) is the table
 shown below:
 
-| ${A_1}$                  | ${B_1}$                 | ... | ${A_7}$               | ${B_7}$ 
-|--------------------------|-------------------------|-----|-----------------------|--------------------------
-| ${a_1 \cos(f_1λ_1(t_1))}$|${b_1 \cos(f_1λ_1(t_1))}$| ... |${a_7 \cos(f_7λ_7(t_1))}$|${b_7 \cos(f_7λ_7(t_1))}$
-| ${a_1 \cos(f_1λ_1(t_2))}$|${b_1 \cos(f_1λ_1(t_2))}$| ... |${a_7 \cos(f_7λ_7(t_2))}$|${b_7 \cos(f_7λ_7(t_2))}$
-| ...                    | ...                   | ... | ...                   | ... 
-| ${a_1 \cos(f_1λ_1(t_n))}$|${b_1 \cos(f_1λ_1(t_n))}$| ... |${a_7 \cos(f_7λ_7(t_n))}$|${b_7 \cos(f_7λ_7(t_n))}$
+| ${A_1}$                     | ${B_1}$                     | ... | ${A_7}$                     | ${B_7}$                               | ${\text{ATR}_{14}(t)}$         | ${Y(t_{i-1})}$   | ${Y(t_{i-2})}$
+|-----------------------------|---------------------------- |-----|-----------------------------|-----------------------------|------------------------------------------|------------------|------------------
+|${a_1 \cos(f_1λ_1(t_j))}$    |${b_1 \cos(f_1λ_1(t_j))}$    | ... |${a_7 \cos(f_7λ_7(t_j))}$    |${b_7 \cos(f_7λ_7(t_j))}$    |${\text{ATR}_{14}(t_j)}$                  |${Y(t_{j-1})}$    |${Y(t_{j-2})}$
+|${a_1 \cos(f_1λ_1(t_{j+1}))}$|${b_1 \cos(f_1λ_1(t_{j+1}))}$| ... |${a_7 \cos(f_7λ_7(t_{j+1}))}$|${b_7 \cos(f_7λ_7(t_{j+1}))}$|${\text{ATR}_{14}(t_{j+1})}$              |${Y(t_{{j+1}-1})}$|${Y(t_{{j+1}-2})}$
+| ...                         | ...                         | ... | ...                         | ...                         |                                          | ...              | ...             
+|${a_1 \cos(f_1λ_1(t_{j+n}))}$|${b_1 \cos(f_1λ_1(t_{j+n}))}$| ... |${a_7 \cos(f_7λ_7(t_{j+n}))}$|${b_7 \cos(f_7λ_7(t_{j+n}))}$|${\text{ATR}_{14}(t_{j+n})}$              |${Y(t_{{j+n}-1})}$|${Y(t_{{j+n}-2})}$
+where
 
 Let's describes the values in the above table:
 
@@ -27,39 +28,3 @@ Let's describes the values in the above table:
 4. ${λ_k(t)}$ is the **heliocentric longitude** of planet ${k}$ at time ${t}$.
 
 That table was designed assuming that W.D. Gann theories are statistically sound.
-
-## Neural Network for ${Y(t)}$ ##
-
-The naive design (current one) is as follows:
-```python
-def create_dnn_model(X_train_scaled):
-    set_all_seeds()
-    model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, activation='relu', input_shape=(X_train_scaled.shape[1],)), 
-        tf.keras.layers.Dropout(0.1),     
-
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dropout(0.1),  
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dropout(0.1),  
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dropout(0.1),  
- 
-
-        tf.keras.layers.Dense(64, activation='tanh'),
-        tf.keras.layers.Dense(1)
-    ])
-    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-    
-    return model 
-```
-
-This design delivers mixed results included in the next table:
-
-Stock| y predicted var | y test var | test loss | mae     
------|-----------------|------------|-----------|---------
-AAPL | 0.000053        | 0.000207   | 0.000314  | 0.013695
-VZ   | 0.000485        | 0.000124   | 0.001036  | 0.026831
-
-
-We have the challenge to improve this design to behave equally fine with a broader selection of stocks.
