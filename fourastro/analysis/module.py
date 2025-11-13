@@ -41,13 +41,11 @@ def define_X(Y_combined, atr, relative_volume):
     X_astro = []
     print(Y_combined)
     # Start columns with the two lagged features
-    columns = ['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] 
-    
-    # Append the names for the astrological features
-    columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
+    columns = [ f"A_{i}" for i in range(len(astro.planets) * 2)]
+    columns.extend(['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] )
+
     for t in Y_combined.index: 
-        # CORRECTED LINE: Replace Y_combined.loc[t, 'ψ_2'] with Y_combined.loc[t, 'ψ_4']
-        x = [Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]]
+        x = []
         k = 1
         for planet in astro.planets:
             # Astrological calculation remains the same, calculating for time t
@@ -60,6 +58,8 @@ def define_X(Y_combined, atr, relative_volume):
             x.append(a * np.cos(f * λ))
             x.append(b * np.sin(f * λ))
             k+=1
+    
+        x.extend([Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
         X_astro.append(x)        
 
     X = pd.DataFrame(X_astro, index=Y_combined.index, columns=columns)
@@ -151,10 +151,11 @@ def refined_dnn_model(X_train_scaled):
     # ------------------ Input Layer ------------------
     input_tensor = Input(shape=(input_dim,))
 
-    # CORRECTED SLICE: 0:6 for all 4 Lags, ATR, and Rv
-    market_input = input_tensor[:, 0:6] 
-    # The astrological features now correctly start at index 6
-    astro_input = input_tensor[:, 6:]
+    # CORRECTED SLICE: Astrological features are the first 14 columns
+    astro_input = input_tensor[:, 0:14] 
+
+    # Market features (4 Lags, ATR, Rv) are the last 6 columns
+    market_input = input_tensor[:, 14:]
 
     # ------------------ Branch 1: Market Context (Strong Signal) ------------------
     # ADDED L2 REGULARIZATION
