@@ -20,6 +20,7 @@ presented below:
 | ...                         | ...                         | ... | ...                         | ...                         | ...            | ... | ...                | ...                            | ...                      |
 |${a_1 \cos(f_1λ_1(t_{j-n}))}$|${b_1 \cos(f_1λ_1(t_{j-n}))}$| ... |${a_7 \cos(f_7λ_7(t_{j-n}))}$|${b_7 \cos(f_7λ_7(t_{j-n}))}$|${Y(t_{j-n})}$  | ... |${Y(t_{j-(n+3)})}$  | ${Atr_{14}(t_{j-n})}$          | ${\mathbf{Rv(t_{j-n})}}$ |
 
+
 where:
 
 The values in the above table are described as follows:
