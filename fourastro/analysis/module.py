@@ -226,7 +226,7 @@ def forecast(ticker):
     X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, 'Close')
     
     # Define ModelCheckpoint callback to save the best model
-    checkpoint_filepath = 'best_model.keras'
+    checkpoint_filepath =  os.path.join(os.path.dirname(__file__), 'models', f"{ticker}.keras")
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_best_only=True,
