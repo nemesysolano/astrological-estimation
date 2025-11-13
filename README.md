@@ -1,4 +1,5 @@
 # The Astrological Estimation #
+
 ## Price-Volume Strength Oscillator ##
 
 We define ${Y(t)}$ as the **price-volume strength** oscillator:
@@ -9,7 +10,7 @@ This oscillator detects strong bullish (${Y(t) \rarr 1}$) or bearish (${Y(t) \ra
 
 ## Longitude-Motion Estimator for ${Y(t)}$ ##
 
-We define ${L(t)}$ as the **price-volume strength** estimator, which is a neural network whose input (${X}$) is the table
+We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is the table
 presented below:
 
 | ${A_1}$                     | ${B_1}$                     | ... | ${A_7}$                     | ${B_7}$                     | ${Atr_{14}(t_{j-i})}$        | ${Y(t_{j-i})}$   | ${Y(t_{j-(i+1)})}$
@@ -22,11 +23,11 @@ where:
 
 The values in the above table are described as follows:
 
-1. ${A_k}$ and ${B_k}$ are the **traction factor** and **motion factor**, respectively, for planet ${k}$.
-2. ${a_k}$ and ${b_k}$ are the **gravitational force** and **mean motion**, respectively, of planet ${k}$.
-3. ${f_k = \frac {2k\pi}{T}}$, where ${T}$ is the orbital period of planet ${k}$.
-4. ${λ_k(t_{j-i})}$ is the **heliocentric longitude** of planet ${k}$ at time ${t_{j-i}}$.
-5. ${Atr_{14}(t_{j-i})}$  represents the 14-day average true range (implying that t > 14 days).
-6. ${Y(t_{j-i})}$ and ${Y(t_{j-(i+1)})}$ are the values for the last two days (starting from and including ${t_{j-i}}$).
+1. ${A_k}$ and ${B_k}$ are the **traction** and **motion** factors, respectively, for planet ${k}$.
+2. ${a_k}$ and ${b_k}$ are the **gravitational** and **motion** factors, respectively, for planet ${k}$.
+3. ${f_k = \frac {2k\pi}{T}}$, where ${T}$ denotes the orbital period of planet ${k}$.
+4. ${λ_k(t_{j-i})}$ represents the **heliocentric longitude** of planet ${k}$ at time ${t_{j-i}}$.
+5. ${Atr_{14}(t_{j-i})}$ signifies the 14-day average true range (implying that ${t > 14}$ days).
+6. ${Y(t_{j-i})}$ and ${Y(t_{j-(i+1)})}$ are the values for the two most recent days, starting from and including ${t_{j-i}}$.
 
-That table was designed assuming that W.D. Gann theories are statistically sound.
+The design of this input table is predicated on the statistical validity of W.D. Gann's theories.

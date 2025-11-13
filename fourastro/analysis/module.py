@@ -41,12 +41,13 @@ def define_X(Y_combined, atr, relative_volume):
     X_astro = []
     print(Y_combined)
     # Start columns with the two lagged features
-    columns = ['ψ_1', 'ψ_2', 'ATR','Rv'] 
+    columns = ['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] 
     
     # Append the names for the astrological features
     columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
     for t in Y_combined.index: 
-        x = [Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], atr[t], relative_volume[t]]
+        # CORRECTED LINE: Replace Y_combined.loc[t, 'ψ_2'] with Y_combined.loc[t, 'ψ_4']
+        x = [Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]]
         k = 1
         for planet in astro.planets:
             # Astrological calculation remains the same, calculating for time t
@@ -85,11 +86,17 @@ def define_Y(dataset, column_name):
     Y_lag1 = Y['ψ'].shift(periods=1)
     Y_lag1.name = 'ψ_1'
     
-    Y_lag2 = Y['ψ'].shift(periods=2) 
+    Y_lag2 = Y['ψ'].shift(periods=2)
     Y_lag2.name = 'ψ_2'
     
+    Y_lag3 = Y['ψ'].shift(periods=3)
+    Y_lag3.name = 'ψ_3'
+
+    Y_lag4 = Y['ψ'].shift(periods=4)
+    Y_lag4.name = 'ψ_4'
+
     # 4. Combine and clean
-    Y_combined = pd.concat([Y['ψ'], Y_lag1, Y_lag2], axis=1)
+    Y_combined = pd.concat([Y['ψ'], Y_lag1, Y_lag2, Y_lag3, Y_lag4], axis=1)
     Y_combined.dropna(inplace=True)
     
     return Y_combined
@@ -139,13 +146,15 @@ def refined_dnn_model(X_train_scaled):
     input_dim = X_train_scaled.shape[1] 
     regularizer = l2(1e-4) # Define a small L2 penalty
     
+# ... (initial setup)
+    
     # ------------------ Input Layer ------------------
     input_tensor = Input(shape=(input_dim,))
 
-    # Indices: 0-3 for Market Context (ψ_1, ψ_2, ATR, Rv)
-    market_input = input_tensor[:, 0:4] 
-    # Indices: 4 to End for Astrological Features
-    astro_input = input_tensor[:, 4:]     
+    # CORRECTED SLICE: 0:6 for all 4 Lags, ATR, and Rv
+    market_input = input_tensor[:, 0:6] 
+    # The astrological features now correctly start at index 6
+    astro_input = input_tensor[:, 6:]
 
     # ------------------ Branch 1: Market Context (Strong Signal) ------------------
     # ADDED L2 REGULARIZATION
@@ -226,7 +235,7 @@ def forecast(ticker):
     X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, 'Close')
     
     # Define ModelCheckpoint callback to save the best model
-    checkpoint_filepath =  os.path.join(os.path.dirname(__file__), 'models', f"{ticker}.keras")
+    checkpoint_filepath =  os.path.join(os.getcwd(), 'models', f"{ticker}.keras")
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_best_only=True,
@@ -258,11 +267,13 @@ def forecast(ticker):
         "test_mae": mae
     }, index=[1])
 
-    test_results_dir = os.path.join(os.path.dirname(__file__), 'test_results')
+    test_results_dir = os.path.join(os.getcwd(), 'test_results')
     if not os.path.exists(test_results_dir):
         os.makedirs(test_results_dir)
+
     test_results_file = os.path.join(test_results_dir, 'result.md')
     open_mode = 'a' if os.path.exists(test_results_file) else 'w'
+
     with open(test_results_file, open_mode) as f:
         if open_mode == 'w':
             print("| ticker | Predicted Variance | Actual Variance | Test Loss (MSE) | Test MAE |", file=f)

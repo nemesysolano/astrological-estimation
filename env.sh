@@ -4,6 +4,7 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]:-$0}"; )" &> /dev/null && 
 PYTHON_ENV="${SCRIPT_DIR}/pydevs"
 FOURASTRO_MODULE_PATH="${SCRIPT_DIR}/fourastro"
 MODELS_FOLDER="${SCRIPT_DIR}/models"
+TEST_RESULTS_FOLDER="${SCRIPT_DIR}/test-results"
 
 if [ ! -d "${PYTHON_ENV}" ]; then
     mkdir -p "${PYTHON_ENV}"
@@ -12,6 +13,11 @@ fi
 
 if [ ! -d "${MODELS_FOLDER}" ]; then
     mkdir -p "${MODELS_FOLDER}"
+fi
+
+
+if [ ! -d "${TEST_RESULTS_FOLDER}" ]; then
+    mkdir -p "${TEST_RESULTS_FOLDER}"
 fi
 
 source "${PYTHON_ENV}/bin/activate"
