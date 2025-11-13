@@ -32,11 +32,15 @@ def import_market_data(symbol):
         ticker = yf.Ticker(symbol)        
         historical_data = ticker.history(period="5y", interval="1d")  
         historical_data.to_csv(output_path)        
+
         remove_timezone_from_json_dates(output_path)
+        historical_data = pd.read_csv(output_path, parse_dates=True, date_format='%Y-%m-%d', index_col='Date')
+        market_cap = ticker.info.get('marketCap')
+        historical_data['relative_volume'] = historical_data['Volume'] / (market_cap / historical_data['Close'])
+        historical_data.to_csv(output_path)        
 
 def load_market_data(symbol):
     module_dir = os.path.dirname(__file__)
     data_dir = os.path.join(module_dir, 'data')
     input_path = os.path.join(data_dir, f"{symbol}.csv")
     return pd.read_csv(input_path, parse_dates=True, date_format='%Y-%m-%d', index_col='Date')
-
