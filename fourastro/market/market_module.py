@@ -173,6 +173,58 @@ def add_slow_swing_ratio(historical_data):
     historical_data['slow_swing_ratio'] = slow_swing_ratio_values
     historical_data.dropna(inplace=True)
 
+def add_directional_probabilities(historical_data) -> pd.DataFrame:    
+    df = historical_data.copy()
+
+    # Conditions for trend alignment
+    aligned_trends = np.sign(df['fast_trend_run']) == np.sign(df['slow_trend_run'])
+    conflicting_trends = ~aligned_trends
+
+    # Aligned Trends Calculation
+    # Both trends are ascending
+    aligned_up = aligned_trends & (df['fast_trend_run'] > 0)
+    # Both trends are descending
+    aligned_down = aligned_trends & (df['fast_trend_run'] < 0)
+
+    # Conflicting Trends Calculation
+    # Fast ascending, slow descending
+    conflicting_fast_up = conflicting_trends & (df['fast_trend_run'] > 0)
+    # Fast descending, slow ascending
+    conflicting_fast_down = conflicting_trends & (df['fast_trend_run'] < 0)
+
+    # Initialize probability columns
+    df['p_up'] = 0.0
+    df['p_down'] = 0.0
+
+    # --- Aligned Trends ---
+    # Sum of swing ratios for aligned trends
+    s_sum = df.loc[aligned_trends, 'slow_swing_ratio'] + df.loc[aligned_trends, 'fast_swing_ratio']
+    prob_aligned = np.minimum(1, np.abs(s_sum) / 2)
+
+    # Assign probabilities for aligned trends
+    df.loc[aligned_up, 'p_up'] = prob_aligned[aligned_up]
+    df.loc[aligned_up, 'p_down'] = 1 - df.loc[aligned_up, 'p_up']
+
+    df.loc[aligned_down, 'p_down'] = prob_aligned[aligned_down]
+    df.loc[aligned_down, 'p_up'] = 1 - df.loc[aligned_down, 'p_down']
+
+    # --- Conflicting Trends ---
+    # Ratio for conflicting trends
+    s_f = df.loc[conflicting_trends, 'fast_swing_ratio']
+    s_s = df.loc[conflicting_trends, 'slow_swing_ratio']
+    # Avoid division by zero
+    s_sum_conflicting = s_f + s_s
+    prob_conflicting = s_f.divide(s_sum_conflicting).fillna(0)
+
+    # Assign probabilities for conflicting trends
+    df.loc[conflicting_fast_up, 'p_up'] = prob_conflicting[conflicting_fast_up]
+    df.loc[conflicting_fast_up, 'p_down'] = 1 - df.loc[conflicting_fast_up, 'p_up']
+
+    df.loc[conflicting_fast_down, 'p_down'] = prob_conflicting[conflicting_fast_down]
+    df.loc[conflicting_fast_down, 'p_up'] = 1 - df.loc[conflicting_fast_down, 'p_down']
+
+    return df
+
 def import_market_data(symbol):
     module_dir = os.path.dirname(__file__)
     data_dir = os.path.join(module_dir, 'data')
@@ -196,6 +248,7 @@ def import_market_data(symbol):
         add_breaking_gap(historical_data) # input fast_swing_ratio
         add_fast_swing_ratio(historical_data) #input for directional probabilities
         add_slow_swing_ratio(historical_data) #input for directional probabilities
+        historical_data = add_directional_probabilities(historical_data)
 
         historical_data.to_csv(output_path)        
 

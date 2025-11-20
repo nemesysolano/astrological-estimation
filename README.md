@@ -112,42 +112,43 @@ This means that programs must track ${R_s(t)}$ using a time series in order to f
 
 
 # Directional Probabilities  #
-The directional probabilities at time ${t}$ estimate the likelihood that the price will move in a particular direction in the next period ${t+1}$, as visualized in the Time-Price Plane (where the horizontal axis represents time and the vertical axis represents price). We assume that directional probabilities occur pair wise. When defining these probabilities, we have to deal with conflicting trends and aligned trends.
+The directional probabilities at time ${t+1}$ estimate the likelihood that the price will move in a particular direction in the next period (${t+1}$), as visualized in the Time-Price Plane (where the horizontal axis represents time and the vertical axis represents price). We assume that directional probabilities occur pair wise. When defining these probabilities, we have to deal with conflicting trends and aligned trends.
 
 ## Conflicting Trends ##
+In this case slow and fast trends run in the opposite directions, the probabilities are calculated as follows:
 
 ### Fast Ascending Trend vs Slow Descending Trend ###
 If the breaking gap truncates an **fast ascending trend and the slow trend is descending**, then the directional probabilities are:
 
-${P_↑(t) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$ and 
+${P_↑(t+1) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$ and 
 
-${P_↓(t) = 1-P_↑(t)}$
+${P_↓(t+1) = 1-P_↑(t+1)}$
 
 
 ### Fast Descending Trend vs Slow Ascending Trend ###
 If the breaking gap truncates a **fast descending trend and the slow trend is ascending**, then the directional probabilities are:
 
-${P_↑(t) = 1-P_↓(t)}$ and 
+${P_↑(t+1) = 1-P_↓(t+1)}$ and 
 
-${P_↓(t) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$
+${P_↓(t+1) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$
 
 ## Aligned Trends ##
 
-In this case both threads are equals to ${P(t)}$ which is defined as
+In this case both trends run in the same direction, the probabilities are calculated as follows:
 
 ### Ascending Trends ###
 
 When both trend are ascending
 
-${P_↑(t) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
+${P_↑(t+1) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
 
-${P_↓ (t) = 1- P_↑(t)}$
+${P_↓(t+1) = 1- P_↑(t+1)}$
 
 ### Descending Trends ###
 
-${P_↑(t) = 1- P_↓(t)}$
+${P_↑(t+1) = 1- P_↓(t+1)}$
 
-${P_↓(t) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
+${P_↓(t+1) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
 
 # Estimating G(t+1) #
 With ${G(t+1)}$ defined as the quantitative measure of the structural violation's magnitude, our next step is to engineer the DNN input features required for its prediction. The input table is
@@ -158,4 +159,6 @@ With ${G(t+1)}$ defined as the quantitative measure of the structural violation'
 |${Y(t_{j-2})}$  | ... |${Y(t_{j-(2+k)})}$  |${L(t_{j-2})}$  | ... |${L(t_{j-(2+k)})}$  |
 | ...            | ... | ...                | ...            | ... | ...                |
 | ${Y(t_{j-n})}$ | ... |${Y(t_{j-(n+k)})}$  |${L(t_{j-n})}$  | ... |${L(t_{j-(n+k)})}$  |
+
+Our DNN predictor for ${G(t+1)}$ is denoted as ${\hat G(t+1)}$
 
