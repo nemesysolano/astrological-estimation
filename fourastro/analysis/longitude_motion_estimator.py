@@ -8,6 +8,8 @@ from tensorflow import keras
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from itertools import combinations
+from .utils import clean_nan_and_inf
+
 Dense, Dropout, BatchNormalization, Concatenate, Input = (tf.keras.layers.Dense, tf.keras.layers.Dropout, tf.keras.layers.BatchNormalization, tf.keras.layers.Concatenate, tf.keras.layers.Input)
 Model = tf.keras.models.Model
 AdamW = tf.keras.optimizers.AdamW
@@ -20,22 +22,9 @@ l2 = tf.keras.regularizers.l2
 
 planet_name_pairs = combinations([planet[1] for planet in astro.planets], 2  )
 
-def clean_nan_and_inf(dataset):
-    dataset.replace([np.inf, -np.inf], np.nan, inplace=True)
-    dataset.dropna(inplace=True)
-    return dataset
-
 def pct_difference(a, b):
     return 2*(b - a) / (a+b)
 
-def atr0(atr, t):
-    val = None
-    if t in atr.index:
-        val = atr[t]
-    else:
-        val = atr[atr.index > t].iloc[0]
-    return val        
-    
 def define_X(Y_combined, atr, relative_volume): 
     astro_constants = astro.astro_constants
     X_astro = []
@@ -216,7 +205,7 @@ def lag_relative_volume(data, window=1):
     data.dropna(inplace=True)
     return data
     
-def forecast(ticker):
+def longitude_motion_estimator(ticker):
     data = lag_relative_volume(add_atr_to_dataframe(clean_nan_and_inf(load_market_data(ticker))))
     # Split index into 70% 20% 10% respectively for train, validate and test
     data_index = data.index
@@ -236,7 +225,7 @@ def forecast(ticker):
     X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, 'Close')
     
     # Define ModelCheckpoint callback to save the best model
-    checkpoint_filepath =  os.path.join(os.getcwd(), 'models', f"{ticker}.keras")
+    checkpoint_filepath =  os.path.join(os.getcwd(), 'models', f"L-to-Y-{ticker}.keras")
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_best_only=True,
