@@ -26,7 +26,7 @@ def add_relative_volume(ticker, historical_data):
     market_cap = ticker.info.get('marketCap')
     historical_data['relative_volume'] = historical_data['Volume'] / (market_cap / historical_data['Close'])    
     historical_data.dropna(inplace=True)
-    
+
 def add_fast_trend_run(historical_data):
     close_prices = historical_data['Close']
     diffs = close_prices.diff().dropna()
@@ -102,6 +102,77 @@ def add_slow_trend_run(historical_data):
     historical_data['slow_trend_run'] = slow_trend_run
     historical_data.dropna(inplace=True)
 
+def add_breaking_gap(historical_data):
+    high_prices = historical_data['High']
+    low_prices = historical_data['Low']
+    slow_trend = historical_data['slow_trend_run']
+    num_rows = len(historical_data)
+
+    breaking_gap = np.full(num_rows, np.nan)
+    for i in range(2, num_rows):
+        gap = 0.0
+        slow_trend_t_minus_1 = slow_trend.iloc[i-1]
+
+        if slow_trend_t_minus_1 > 0:
+            if low_prices.iloc[i] < low_prices.iloc[i-2]:
+                gap = low_prices.iloc[i-2] - low_prices.iloc[i]
+
+        elif slow_trend_t_minus_1 < 0:
+            if high_prices.iloc[i] > high_prices.iloc[i-2]:
+                gap = high_prices.iloc[i] - high_prices.iloc[i-2]
+
+        breaking_gap[i] = gap
+
+    historical_data['breaking_gap'] = breaking_gap
+    historical_data.dropna(inplace=True)
+
+def add_fast_swing_ratio(historical_data):
+    breaking_gap = historical_data['breaking_gap']
+    fast_trend_run = historical_data['fast_trend_run']
+
+    ratio = np.divide(
+        breaking_gap,
+        np.abs(fast_trend_run),
+        out=np.full_like(breaking_gap, np.nan),
+        where=(fast_trend_run != 0)
+    )
+
+    fast_swing_ratio = np.minimum(2, np.square(ratio))
+    historical_data['fast_swing_ratio'] = fast_swing_ratio
+    historical_data.dropna(inplace=True)
+
+def last_opposite_to_slow_run(slow_trend_runs, t):
+    if t >= len(slow_trend_runs):
+        return np.nan
+
+    current_run = slow_trend_runs.iloc[t]
+    if np.isnan(current_run) or current_run == 0:
+        return np.nan
+
+    current_sign = np.sign(current_run)
+
+    for i in range(t - 1, -1, -1):
+        previous_run = slow_trend_runs.iloc[i]
+        if not np.isnan(previous_run) and np.sign(previous_run) == -current_sign:
+            return previous_run
+
+    return np.nan
+
+def add_slow_swing_ratio(historical_data):
+    pass
+    slow_trend_runs = historical_data['slow_trend_run']
+    num_rows = len(historical_data)
+    slow_swing_ratio_values = np.full(num_rows, np.nan)
+
+    for i in range(num_rows):
+        r_star_s_t = last_opposite_to_slow_run(slow_trend_runs, i)
+        if not np.isnan(r_star_s_t) and r_star_s_t != 0:
+            ratio = slow_trend_runs.iloc[i] / np.abs(r_star_s_t)
+            slow_swing_ratio_values[i] = min(2.0, ratio**2)
+
+    historical_data['slow_swing_ratio'] = slow_swing_ratio_values
+    historical_data.dropna(inplace=True)
+
 def import_market_data(symbol):
     module_dir = os.path.dirname(__file__)
     data_dir = os.path.join(module_dir, 'data')
@@ -119,9 +190,12 @@ def import_market_data(symbol):
         historical_data = pd.read_csv(output_path, parse_dates=True, date_format='%Y-%m-%d', index_col='Date')
 
         add_relative_volume(ticker, historical_data)
-        add_fast_trend_run(historical_data)
-        add_structural_direction(historical_data)
-        add_slow_trend_run(historical_data)
+        add_fast_trend_run(historical_data) # input for breaking_gap
+        add_structural_direction(historical_data) # Input for slow_trend_run
+        add_slow_trend_run(historical_data) # input for breaking_gap
+        add_breaking_gap(historical_data) # input fast_swing_ratio
+        add_fast_swing_ratio(historical_data) #input for directional probabilities
+        add_slow_swing_ratio(historical_data) #input for directional probabilities
 
         historical_data.to_csv(output_path)        
 

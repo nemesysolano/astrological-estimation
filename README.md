@@ -95,6 +95,9 @@ If the slow trend at time ${t}$ is **descending**, the violation occurs when the
 
 if ${h_{t+1} > h_{t-1}}$, the breaking Gap  is defined as ${G(t+1) = h_{t+1} - h_{t-1}}$
 
+----
+If neither ${l_{t+1} < l_{t-1}}$ or ${h_{t+1} > h_{t-1}}$ occurs, then ${G(t+1)}$ is zero regardless trends nature.
+
 ## The Fast Swing Ratio ${S_f(t)}$ ##
 The **fast swing ratio** ${S_f(t)}$ is calculated using **Breaking Gap** ${G(t+1)}$ and the magnitude of the **fast trend** ${|R_f(t)|}$:
 
@@ -104,8 +107,8 @@ ${S_f(t) = \mathbf{min}(2, (\frac {G(t+1)}{|R_f(t)|})^2)}$
 
 ${S_s(t) = \mathbf{min}(2, (\frac {R_s(t)}{|R^*_s(t)|})^2)}$.
 
-Consider the ${R_s(t-n),...,R_s(t-1)}$ sequence of slow trend runs. We define ${R^*_s(t)}$ most recent element in that list whose direction is opposite to ${R_s(t)}$.
-This means that progrfams must track ${R_s(t)}$ using a time series in order to find out ${R^*_s(t)}$.
+Consider the ${R_s(t-n),...,R_s(t-1)}$ sequence of slow trend runs. We define the **last opposite$ to ${R_s(t)}$** (namely ${R^*_s(t)}$) as the most recent element in that list whose direction is opposite to ${R_s(t)}$.
+This means that programs must track ${R_s(t)}$ using a time series in order to find out ${R^*_s(t)}$.
 
 
 # Directional Probabilities  #
