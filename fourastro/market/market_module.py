@@ -211,10 +211,15 @@ def add_directional_probabilities(historical_data) -> pd.DataFrame:
     # --- Conflicting Trends ---
     # Ratio for conflicting trends
     s_f = df.loc[conflicting_trends, 'fast_swing_ratio']
-    s_s = df.loc[conflicting_trends, 'slow_swing_ratio']
-    # Avoid division by zero
-    s_sum_conflicting = s_f + s_s
-    prob_conflicting = s_f.divide(s_sum_conflicting).fillna(0)
+    s_s = df.loc[conflicting_trends, 'slow_swing_ratio']    
+    s_sum_conflicting = s_f + s_s    
+    
+    # Calculate probability for conflicting trends, with a default of 0.5
+    prob_conflicting = pd.Series(0.5, index=s_f.index)
+    
+    # Apply the formula only where sf > 0 and the sum is not zero
+    mask = (s_f > 0) & (s_sum_conflicting != 0)
+    prob_conflicting[mask] = s_f[mask] / s_sum_conflicting[mask]
 
     # Assign probabilities for conflicting trends
     df.loc[conflicting_fast_up, 'p_up'] = prob_conflicting[conflicting_fast_up]

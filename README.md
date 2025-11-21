@@ -6,12 +6,13 @@ We define ${Y(t)}$ as the **price-volume strength** oscillator:
 
 ${Y(t) = \frac {(p_t-p_{t-1})}{p_t+p_{t-1}} \min(1,v_t/v_{t-1})}$, where
 
-- ${p_t}$ close price at time ${t}$
-- ${p_{t-1}}$ close price at time ${t-1}$
+- ${p_t}$ price at time ${t}$
+- ${p_{t-1}}$ price at time ${t-1}$
 - ${v_t}$ traded volume at time ${t}$
 - ${v_{t-1}}$ traded volume at time ${t-1}$
 
-This oscillator detects strong bullish (${Y(t) \rarr 1}$) or bearish (${Y(t) \rarr -1}$) behavior.
+This oscillator detects strong bullish (${Y(t) \rarr 1}$) or bearish (${Y(t) \rarr -1}$) behavior. Moreover, ${p_t}$ represents ${h_t} (high price in OHLC bar) when
+analysing resistance/bearish momentum, and ${l_t} (low price in OHLC bar) when analysing support/bullish momentum.
 
 ## Longitude-Motion Estimator for ${Y(t)}$ ##
 
@@ -36,7 +37,7 @@ The values in the above table are described as follows:
 4. ${λ_k(t_{j-i})}$ represents the **heliocentric longitude** of planet ${k}$ at time ${t_{j-i}}$.
 5. ${\mathbf{Atr_{14}(t_{j-i})}}$ signifies the 14-day **average true range** (implying that ${t > 14}$ days).
 6. ${Y(t_{j-i})}$ to ${Y(t_{j-(i+3)})}$ are the values for the four most recent days, starting from and including ${t_{j-i}}$.
-7. ${\mathbf{Rv(t_{j-i})}}$ is ${\frac{v_{t-i}}{o_{t-i}}}$ signifies the lagged **Relative Volume** (or Volume Ratio), defined as the ratio between traded volumeß (${v_{t-i}}$) and outstanding shares (${o_{t-i}}$).
+7. ${\mathbf{Rv(t_{j-i})}}$ is ${\frac{v_{t-i}}{o_{t-i}}}$ signifies the lagged **Relative Volume** (or Volume Ratio), defined as the ratio between traded volume (${v_{t-i}}$) and outstanding shares (${o_{t-i}}$).
 
 The design of this input table is predicated on the statistical validity of W.D. Gann's theories.
 
@@ -54,7 +55,7 @@ Let ${a}$ and ${b}$ be two consecutive moments in the time series. A trend begin
 
 ### Slow Trend Run ${R_s(t)}$ ##
 
-The purpose of the **slow trend run** is to gauge the magnitude of the run since the structural trend was first stablished. The formulae is quite similar except for the **starting point**:
+The purpose of the **slow trend run** is to gauge the magnitude of the run since the structural trend was first established. The formulae is quite similar except for the **starting point**:
 
 - ${R_s(t) = c_t - c_{t_s-1}}$: The trend run.
 - ${n = t - t_s}$: The duration of the trend run, measured as the number of bars excluding the start bar
@@ -118,19 +119,20 @@ The directional probabilities at time ${t+1}$ estimate the likelihood that the p
 In this case slow and fast trends run in the opposite directions, the probabilities are calculated as follows:
 
 ### Fast Ascending Trend vs Slow Descending Trend ###
-If the breaking gap truncates an **fast ascending trend and the slow trend is descending**, then the directional probabilities are:
+If the breaking gap truncates a **fast ascending trend and the slow trend is descending**, then the directional probabilities are:
 
-${P_↑(t+1) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$ and 
+${P_↑(t+1) = 1 - P_↓(t+1)}$, and
 
-${P_↓(t+1) = 1-P_↑(t+1)}$
+${P_↓(t+1) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$ when ${S_f(t) \gt 0}$ or 0.5 otherwise.
 
 
 ### Fast Descending Trend vs Slow Ascending Trend ###
 If the breaking gap truncates a **fast descending trend and the slow trend is ascending**, then the directional probabilities are:
 
-${P_↑(t+1) = 1-P_↓(t+1)}$ and 
+${P_↑(t+1) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$ when ${S_f(t) \gt 0}$ or 0.5 otherwise. And, 
 
-${P_↓(t+1) = \frac {S_f(t)}{S_f(t) + S_s(t)}}$
+${P_↓(t+1) = 1- P_↑(t+1)}$
+ 
 
 ## Aligned Trends ##
 
