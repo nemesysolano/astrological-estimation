@@ -317,7 +317,7 @@ def longitude_motion_estimator(ticker, price, model):
     y_predict_var = np.var(y_predict)
     Y_test_scaled_var = np.var(Y_test_scaled.values)
 
-    test_results_dir = os.path.join(os.getcwd(), 'test_results')
+    test_results_dir = os.path.join(os.getcwd(), 'test-results')
     if not os.path.exists(test_results_dir):
         os.makedirs(test_results_dir)
 
