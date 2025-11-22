@@ -104,7 +104,7 @@ def define_Y(dataset, column_name):
     
     return Y_combined
 
-def define_variables(train_data, validation_data, test_data, column_name, define_X):        
+def define_variables(train_data, validation_data, test_data, column_name, define_X, atr_option):        
     Y_train_combined = define_Y(train_data, column_name)
     Y_val_combined = define_Y(validation_data, column_name)
     Y_test_combined = define_Y(test_data, column_name)
@@ -113,9 +113,9 @@ def define_variables(train_data, validation_data, test_data, column_name, define
     Y_val_unscaled = Y_val_combined['ψ']
     Y_test_unscaled =Y_test_combined['ψ']
     
-    X_train_unscaled = define_X(Y_train_combined, train_data['ATR'], train_data['relative_volume'])    
-    X_val_unscaled = define_X(Y_val_combined, validation_data['ATR'], validation_data['relative_volume'])
-    X_test_unscaled = define_X(Y_test_combined, test_data['ATR'], test_data['relative_volume'])    
+    X_train_unscaled = define_X(Y_train_combined, train_data[atr_option], train_data['relative_volume'])    
+    X_val_unscaled = define_X(Y_val_combined, validation_data[atr_option], validation_data['relative_volume'])
+    X_test_unscaled = define_X(Y_test_combined, test_data[atr_option], test_data['relative_volume'])    
 
     X_scaler = StandardScaler()
     X_train_scaled = X_scaler.fit_transform(X_train_unscaled)
@@ -229,7 +229,7 @@ def refined_dnn_financial_model(X_train_scaled):
     x = BatchNormalization()(x)
     x = Dropout(0.1)(x)
 
-    # Merge the error input with the processed market features
+    # Merge the error input with the processed market features``
     merged = Concatenate()([x, error_input])
 
     # Output layer (tanh forces output to [-1, 1] range)
@@ -245,22 +245,6 @@ def refined_dnn_financial_model(X_train_scaled):
     
     return model
     
-def add_atr_to_dataframe(data, window=14):
-    high_low = data['High'] - data['Low']
-    high_close_prev = np.abs(data['High'] - data['Close'].shift(1))
-    low_close_prev = np.abs(data['Low'] - data['Close'].shift(1))
-
-    true_range = pd.DataFrame({
-        'high_low': high_low,
-        'high_close_prev': high_close_prev,
-        'low_close_prev': low_close_prev
-    }).max(axis=1)
-
-    true_range = true_range.shift(1)
-    data['ATR'] = true_range.ewm(span=window, adjust=False).mean()
-    data.dropna(inplace=True)
-    return data
-   
 def lag_relative_volume(data, window=1):
     data['relative_volume'] = data['relative_volume'].shift(window)
     data.dropna(inplace=True)
@@ -269,11 +253,9 @@ def lag_relative_volume(data, window=1):
 def longitude_motion_estimator(ticker, price, model):    
     define_model = refined_dnn_astrological_model if model == 'astro' else refined_dnn_financial_model
     define_X = define_astrological_x if model == 'astro' else define_financial_x
-
-    # define_model = refined_dnn_astrological_model
-    # define_X = define_astrological_x
-
-    data = lag_relative_volume(add_atr_to_dataframe(clean_nan_and_inf(load_market_data(ticker))))
+    atr_option = f"Atr_{price}"
+    
+    data = lag_relative_volume(clean_nan_and_inf(load_market_data(ticker)))
     # Split index into 70% 20% 10% respectively for train, validate and test
     data_index = data.index
     total_len = len(data_index)
@@ -289,7 +271,7 @@ def longitude_motion_estimator(ticker, price, model):
     validation_data = data.loc[val_index]
     test_data = data.loc[test_index]
     
-    X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, price, define_X)
+    X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, price, define_X, atr_option)
     
     # Define ModelCheckpoint callback to save the best model
     checkpoint_filepath =  os.path.join(os.getcwd(), 'models', f"L-to-Y-{ticker}.keras")
