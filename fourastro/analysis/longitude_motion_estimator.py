@@ -25,13 +25,14 @@ planet_name_pairs = combinations([planet[1] for planet in astro.planets], 2  )
 def pct_difference(a, b):
     return 2*(b - a) / (a+b)
 
-def define_X(Y_combined, atr, relative_volume): 
+def define_astrological_x(Y_combined, atr, relative_volume): 
     astro_constants = astro.astro_constants
     X_astro = []
-    print(Y_combined)
+
     # Start columns with the two lagged features
-    columns = [ f"A_{i}" for i in range(len(astro.planets) * 2)]
-    columns.extend(['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] )
+    columns = []
+    columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
+    columns.extend(['ψ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] ) # prediction_error_prev is ψ_0
 
     for t in Y_combined.index: 
         x = []
@@ -48,12 +49,25 @@ def define_X(Y_combined, atr, relative_volume):
             x.append(b * np.sin(f * λ))
             k+=1
     
-        x.extend([Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
+        x.extend([Y_combined.loc[t, 'ψ_1'] - Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
         X_astro.append(x)        
 
     X = pd.DataFrame(X_astro, index=Y_combined.index, columns=columns)
     return X
 
+def define_financial_x(Y_combined, atr, relative_volume):
+    # Start columns with the two lagged features ψ_0
+    columns = ['ψ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] # prediction_error_prev is ψ_0
+    X = []
+    for t in Y_combined.index: 
+        ψ_0 = Y_combined.loc[t, 'ψ_1'] - Y_combined.loc[t, 'ψ_2']
+        x = ([ψ_0, Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
+
+        X.append(x)        
+
+    X = pd.DataFrame(X, index=Y_combined.index, columns=columns)
+
+    return X
 
 def define_Y(dataset, column_name):
     # Causal Calculation of Y(t) = [(p_t - p_{t-1}) / (p_t + p_{t-1})] * min(1, v_t / v_{t-1})
@@ -90,7 +104,7 @@ def define_Y(dataset, column_name):
     
     return Y_combined
 
-def define_variables(train_data, validation_data, test_data, column_name):    
+def define_variables(train_data, validation_data, test_data, column_name, define_X):        
     Y_train_combined = define_Y(train_data, column_name)
     Y_val_combined = define_Y(validation_data, column_name)
     Y_test_combined = define_Y(test_data, column_name)
@@ -98,21 +112,20 @@ def define_variables(train_data, validation_data, test_data, column_name):
     Y_train_unscaled = Y_train_combined['ψ']
     Y_val_unscaled = Y_val_combined['ψ']
     Y_test_unscaled =Y_test_combined['ψ']
-
-    X_train_unscaled = define_X(Y_train_combined, train_data['ATR'], train_data['relative_volume'])
+    
+    X_train_unscaled = define_X(Y_train_combined, train_data['ATR'], train_data['relative_volume'])    
     X_val_unscaled = define_X(Y_val_combined, validation_data['ATR'], validation_data['relative_volume'])
-    X_test_unscaled = define_X(Y_test_combined, test_data['ATR'], test_data['relative_volume'])
+    X_test_unscaled = define_X(Y_test_combined, test_data['ATR'], test_data['relative_volume'])    
 
     X_scaler = StandardScaler()
     X_train_scaled = X_scaler.fit_transform(X_train_unscaled)
     X_val_scaled = X_scaler.transform(X_val_unscaled)
     X_test_scaled = X_scaler.transform(X_test_unscaled)
-
+    
     Y_scaler =  MinMaxScaler( feature_range=(-1, 1))
     Y_train_scaled = Y_train_unscaled.to_frame()
     Y_val_scaled = Y_val_unscaled.to_frame()
     Y_test_scaled = Y_test_unscaled.to_frame()
-    
     
     return (
         X_train_scaled, X_val_scaled, X_test_scaled,
@@ -130,21 +143,24 @@ def set_all_seeds(seed_value=42):
     # TensorFlow/Keras randomness
     tf.random.set_seed(seed_value)
     
-def refined_dnn_model(X_train_scaled):
+def refined_dnn_astrological_model(X_train_scaled):
     set_all_seeds()
     input_dim = X_train_scaled.shape[1] 
-    regularizer = l2(1e-4) # Define a small L2 penalty
+    regularizer = l2(1e-6) # Define a small L2 penalty (  1e-4, 1e-5, AND 1e-6 )
     
 # ... (initial setup)
     
     # ------------------ Input Layer ------------------
     input_tensor = Input(shape=(input_dim,))
 
-    # CORRECTED SLICE: Astrological features are the first 14 columns
+    # Astrological features are the first 14 columns
     astro_input = input_tensor[:, 0:14] 
 
+    # Previous prediction error is the 15th column
+    error_input = input_tensor[:, 14:15]
+
     # Market features (4 Lags, ATR, Rv) are the last 6 columns
-    market_input = input_tensor[:, 14:]
+    market_input = input_tensor[:, 15:]
 
     # ------------------ Branch 1: Market Context (Strong Signal) ------------------
     # ADDED L2 REGULARIZATION
@@ -158,7 +174,7 @@ def refined_dnn_model(X_train_scaled):
     
     # ------------------ Merge and Deep Processing ------------------
     # Concatenate the processed features
-    merged = Concatenate()([market_branch, astro_branch]) 
+    merged = Concatenate()([market_branch, astro_branch, error_input]) 
     
     # Deep layers for cross-feature interaction
     # ADDED L2 REGULARIZATION
@@ -178,11 +194,56 @@ def refined_dnn_model(X_train_scaled):
     
     # Use AdamW optimizer for better regularization
     model.compile(optimizer=AdamW(learning_rate=0.001), 
-                  loss='mse', 
+                  loss='mae', 
                   metrics=['mae'])
     
     return model
 
+def refined_dnn_financial_model(X_train_scaled):    
+    set_all_seeds()
+    input_dim = X_train_scaled.shape[1] 
+    regularizer = l2(1e-6) # Define a small L2 penalty (  1e-4, 1e-5, AND 1e-6 )
+    
+    # ------------------ Input Layer ------------------
+    input_tensor = Input(shape=(input_dim,))
+    
+    # Previous prediction error is the 1st column
+    error_input = input_tensor[:, 0:1]
+    
+    # Market features are the rest
+    market_input = input_tensor[:, 1:]
+
+    # ------------------ Branch 1: Market Context (Strong Signal) ------------------
+    # ADDED L2 REGULARIZATION
+    market_branch = Dense(16, activation='relu', kernel_regularizer=regularizer, name='market_feature_proc')(market_input)
+    x = BatchNormalization()(market_branch)
+    
+    # Deep layers for cross-feature interaction
+    # ADDED L2 REGULARIZATION
+    x = Dense(64, activation='relu', kernel_regularizer=regularizer)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.2)(x) 
+    
+    # ADDED L2 REGULARIZATION
+    x = Dense(32, activation='relu', kernel_regularizer=regularizer)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.1)(x)
+
+    # Merge the error input with the processed market features
+    merged = Concatenate()([x, error_input])
+
+    # Output layer (tanh forces output to [-1, 1] range)
+    output_tensor = Dense(1, activation='tanh')(merged)
+    
+    # Define the full model
+    model = Model(inputs=input_tensor, outputs=output_tensor)
+    
+    # Use AdamW optimizer for better regularization
+    model.compile(optimizer=AdamW(learning_rate=0.001), 
+                  loss='mae', 
+                  metrics=['mae'])
+    
+    return model
     
 def add_atr_to_dataframe(data, window=14):
     high_low = data['High'] - data['Low']
@@ -205,7 +266,13 @@ def lag_relative_volume(data, window=1):
     data.dropna(inplace=True)
     return data
     
-def longitude_motion_estimator(ticker):
+def longitude_motion_estimator(ticker, price, model):    
+    define_model = refined_dnn_astrological_model if model == 'astro' else refined_dnn_financial_model
+    define_X = define_astrological_x if model == 'astro' else define_financial_x
+
+    # define_model = refined_dnn_astrological_model
+    # define_X = define_astrological_x
+
     data = lag_relative_volume(add_atr_to_dataframe(clean_nan_and_inf(load_market_data(ticker))))
     # Split index into 70% 20% 10% respectively for train, validate and test
     data_index = data.index
@@ -222,18 +289,18 @@ def longitude_motion_estimator(ticker):
     validation_data = data.loc[val_index]
     test_data = data.loc[test_index]
     
-    X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, 'Close')
+    X_train_scaled, X_val_scaled, X_test_scaled, Y_train_scaled, Y_val_scaled, Y_test_scaled, _, _ = define_variables(train_data, validation_data, test_data, price, define_X)
     
     # Define ModelCheckpoint callback to save the best model
     checkpoint_filepath =  os.path.join(os.getcwd(), 'models', f"L-to-Y-{ticker}.keras")
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_best_only=True,
-        monitor='val_loss',
+        monitor='val_mae',
         mode='min'
     )
 
-    forecasting_model = refined_dnn_model(X_train_scaled)
+    forecasting_model = define_model(X_train_scaled)
          
     forecasting_model.fit(
         X_train_scaled, Y_train_scaled,
@@ -244,28 +311,21 @@ def longitude_motion_estimator(ticker):
     )
 
     forecasting_model = tf.keras.models.load_model(checkpoint_filepath)
-    loss, mae = forecasting_model.evaluate(X_test_scaled, Y_test_scaled, verbose=0)
+    _, mae = forecasting_model.evaluate(X_test_scaled, Y_test_scaled, verbose=0)
     y_predict = forecasting_model.predict(X_test_scaled)
 
     y_predict_var = np.var(y_predict)
     Y_test_scaled_var = np.var(Y_test_scaled.values)
 
-    result = pd.DataFrame({
-        'y_predict': y_predict_var,
-        'y_test': Y_test_scaled_var,
-        "test_loss": loss,
-        "test_mae": mae
-    }, index=[1])
-
     test_results_dir = os.path.join(os.getcwd(), 'test_results')
     if not os.path.exists(test_results_dir):
         os.makedirs(test_results_dir)
 
-    test_results_file = os.path.join(test_results_dir, 'result.md')
+    test_results_file = os.path.join(test_results_dir, f"{price}-{model}-result.md")
     open_mode = 'a' if os.path.exists(test_results_file) else 'w'
 
     with open(test_results_file, open_mode) as f:
         if open_mode == 'w':
-            print("| ticker | Predicted Variance | Actual Variance | Test Loss (MSE) | Test MAE |", file=f)
-        print("|---|---|---|---|---|", file=f)
-        print(f"| {ticker} | {y_predict_var:.6f} | {Y_test_scaled_var:.6f} | {loss:.6f} | {mae:.6f} |", file=f)
+            print("| ticker   | Predicted Variance  | Actual Variance         | Test MAE  |", file=f)
+            print("|----------|---------------------|-------------------------|-----------|", file=f)
+        print(   f"| {ticker} | {y_predict_var:.6f} | {Y_test_scaled_var:.6f} | {mae:.6f} |", file=f)
