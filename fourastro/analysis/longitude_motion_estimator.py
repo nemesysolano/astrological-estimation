@@ -32,7 +32,7 @@ def define_astrological_x(Y_combined, atr, relative_volume):
     # Start columns with the two lagged features
     columns = []
     columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
-    columns.extend(['ψ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] ) # prediction_error_prev is ψ_0
+    columns.extend(['δ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] ) # prediction_error_prev is δ_0
 
     for t in Y_combined.index: 
         x = []
@@ -56,12 +56,12 @@ def define_astrological_x(Y_combined, atr, relative_volume):
     return X
 
 def define_financial_x(Y_combined, atr, relative_volume):
-    # Start columns with the two lagged features ψ_0
-    columns = ['ψ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] # prediction_error_prev is ψ_0
+    # Start columns with the two lagged features δ_0
+    columns = ['δ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATR','Rv'] # prediction_error_prev is δ_0
     X = []
     for t in Y_combined.index: 
-        ψ_0 = Y_combined.loc[t, 'ψ_1'] - Y_combined.loc[t, 'ψ_2']
-        x = ([ψ_0, Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
+        δ_0 = Y_combined.loc[t, 'ψ_1'] - Y_combined.loc[t, 'ψ_2']
+        x = ([δ_0, Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
 
         X.append(x)        
 

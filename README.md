@@ -18,12 +18,12 @@ analysing resistance/bearish momentum, and ${l_t}$ (low price in OHLC bar) when 
 
 We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is the is illustrated by the table below:
 
-| ${A_{i,1}}$             | ${B_{i,1}}$                 | ... | ${A_{i,7}}$             | ${B_{i,7}}$             | ${Y(t-i)}$     | ... | ${Y(t-(i+3))}$     | ${\mathbf{Atr_{14}(t-i)}}$     | ${\mathbf{Rv(t-i)}}$     |
-|-------------------------|-----------------------------|-----|-------------------------|-------------------------|----------------|-----|--------------------|--------------------------------|--------------------------|
-|${a_1 \cos(f_1λ_1(t-1))}$|${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$|${b_7 \cos(f_7λ_7(t-1))}$|${Y(t-1)}$      | ... |${Y(t-4)}$          | ${Atr_{14}(t-1)}$              | ${\mathbf{Rv(t-1)}}$     |
-|${a_1 \cos(f_1λ_1(t-2))}$|${b_1 \cos(f_1λ_1(t-2))}$    | ... |${a_7 \cos(f_7λ_7(t-2))}$|${b_7 \cos(f_7λ_7(t-2))}$|${Y(t-2)}$      | ... |${Y(t-5)}$          | ${Atr_{14}(t-2)}$              | ${\mathbf{Rv(t-2)}}$     |
-| ...                     | ...                         | ... | ...                     | ...                     | ...            | ... | ...                | ...                            | ...                      |
-|${a_1 \cos(f_1λ_1(t-n))}$|${b_1 \cos(f_1λ_1(t_{j-n}))}$| ... |${a_7 \cos(f_7λ_7(t-n))}$|${b_7 \cos(f_7λ_7(t-n))}$|${Y(t-n)}$      | ... |${Y(t-(n+3))}$      | ${Atr_{14}(t_{j-n})}$          | ${\mathbf{Rv(t_{j-n})}}$ |
+| ${A_{i,1}}$             | ${B_{i,1}}$                 | ... | ${A_{i,7}}$             | ${B_{i,7}}$             |${δ_0(t)}$  | ${Y(t-i)}$|...|${Y(t-(i+3))}$        | ${\mathbf{Atr_{14}(t-i)}}$     | ${\mathbf{Rv(t-i)}}$     |
+|-------------------------|-----------------------------|-----|-------------------------|-------------------------|------------|-----------|---|----------------------|--------------------------------|--------------------------|
+|${a_1 \cos(f_1λ_1(t-1))}$|${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$|${b_7 \cos(f_7λ_7(t-1))}$|${δ_0(t-1)}$|${Y(t-1)}$ |...|${Y(t-4)}$            | ${Atr_{14}(t-1)}$              | ${\mathbf{Rv(t-1)}}$     |
+|${a_1 \cos(f_1λ_1(t-2))}$|${b_1 \cos(f_1λ_1(t-2))}$    | ... |${a_7 \cos(f_7λ_7(t-2))}$|${b_7 \cos(f_7λ_7(t-2))}$|${δ_0(t-2)}$|${Y(t-2)}$ |...|${Y(t-5)}$            | ${Atr_{14}(t-2)}$              | ${\mathbf{Rv(t-2)}}$     |
+| ...                     | ...                         | ... | ...                     | ...                     | ...        | ...       |...|                      | ...                            | ...                      |
+|${a_1 \cos(f_1λ_1(t-n))}$|${b_1 \cos(f_1λ_1(t_{j-n}))}$| ... |${a_7 \cos(f_7λ_7(t-n))}$|${b_7 \cos(f_7λ_7(t-n))}$|${δ_0(t-n)}$|${Y(t-1)}$ |...|${Y(t-(n+3))}$        | ${Atr_{14}(t_{j-n})}$          | ${\mathbf{Rv(t_{j-n})}}$ |
 
 
 where:
@@ -37,6 +37,7 @@ The values in the above table are described as follows:
 5.  ${\mathbf{Atr_{14}(t-i)}}$ signifies the 14-day **average true range** (implying that ${t > 14}$ days).
 6. ${Y(t-i)}$ to ${Y(t-(i+3))}$ are the values for the four most recent days, starting from and including ${t-i}$.
 7. ${\mathbf{Rv(t-i)}}$ is ${\frac{v_{t-i}}{o_{t-i}}}$ signifies the lagged **Relative Volume** (or Volume Ratio), defined as the ratio between traded volume (${v_{t-i}}$) and outstanding shares (${o_{t-i}}$).
+8. ${δ_0(t) = Y(t) - Y(t-1)}$
 
 The design of this input table is predicated on the statistical validity of W.D. Gann's theories.
 
@@ -154,11 +155,11 @@ ${P_↓(t+1) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
 # Estimating G(t+1) #
 With ${G(t+1)}$ defined as the quantitative measure of the structural violation's magnitude, our next step is to engineer the DNN input features required for its prediction. The input table is
 
-| ${Y_c(t-i)}$     | ${Y_h(t-i)}$     | ${Y_l(t-i)}$     | ${L_c(t-i)}$     | ${L_h(t-i)}$     | ${L_l(t-i)}$     |
-|------------------|------------------|------------------|------------------|------------------|------------------|
-| ${Y_c(t)}$       | ${Y_h(t)}$       | ${Y_l(t)}$       | ${L_c(t)}$       | ${L_h(t)}$       | ${L_l(t)}$       |
-| ...              | ...              | ...              | ...              | ...              | ...              |
-| ${Y_c(t-(n-1))}$ | ${Y_h(t-(n-1))}$ | ${Y_l(t-(n-1))}$ | ${L_c(t-(n-1))}$ | ${L_h(t-(n-1))}$ | ${L_l(t-(n-1))}$ |
+| ${Y_c(t-i)}$     | ${Y_h(t-i)}$     | ${Y_l(t-i)}$     | ${L_c(t-i)}$     | ${L_h(t-i)}$     | ${L_l(t-i)}$     |${S_d(t-i)}$    |${\mathbf{Atr_{14}(t)}}$.     |
+|------------------|------------------|------------------|------------------|------------------|------------------|----------------|------------------------------|
+| ${Y_c(t)}$       | ${Y_h(t)}$       | ${Y_l(t)}$       | ${L_c(t)}$       | ${L_h(t)}$       | ${L_l(t)}$       |${S_d(t)}$      |${\mathbf{Atr_{14}(t-1)}}$    |
+| ...              | ...              | ...              | ...              | ...              | ...              |...             |...                           |
+| ${Y_c(t-(n-1))}$ | ${Y_h(t-(n-1))}$ | ${Y_l(t-(n-1))}$ | ${L_c(t-(n-1))}$ | ${L_h(t-(n-1))}$ | ${L_l(t-(n-1))}$ |${S_d(t-(n-1))}$|${\mathbf{Atr_{14}(t-(n-1))}}$|
 
 where ${i}$ ranges from ${0}$ to ${n-1}$. Additionally ${Y_c(t)}$, ${Y_h(t)}$, ${Y_l(t)}$ are ${Y(t)}$ values calculated for **close**, **high** and **low** prices respectively.
 
