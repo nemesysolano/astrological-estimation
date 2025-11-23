@@ -165,3 +165,6 @@ where ${i}$ ranges from ${0}$ to ${n-1}$. Additionally ${Y_c(t)}$, ${Y_h(t)}$, $
 
 Our DNN predictor for ${G(t+1)}$ is denoted as ${\hat G(t+1)}$
 
+# Next Step #
+- Ask Gemini to perform the same analysis that Copilot did.
+- If Gemini confirms that financial-only DNN is more robust, stable, and accurate across ATR regimes, remove astrological input as suggested by Copilot and adopt Copilot suggestions for improving the winning model even more.
