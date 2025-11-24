@@ -37,7 +37,7 @@ def add_average_true_range_percentage(historical_data, period):
     atr = tr.ewm(alpha=1/period, adjust=False).mean()
 
     # Calculate ATRP and add it to the DataFrame
-    historical_data[f"ATRP{period}"] = (atr / close)
+    historical_data[f"ATRP"] = atr / close
 
 def add_relative_volume(ticker, historical_data):
     market_cap = ticker.info.get('marketCap')
@@ -264,9 +264,7 @@ def import_market_data(symbol):
         historical_data = pd.read_csv(output_path, parse_dates=True, date_format='%Y-%m-%d', index_col='Date')
         
         add_relative_volume(ticker, historical_data)
-        add_average_true_range_percentage(historical_data, 5) # Required for G(t+1)
         add_average_true_range_percentage(historical_data, 14) # Required for G(t+1)
-        add_average_true_range_percentage(historical_data, 20) # Required for G(t+1)
         add_fast_trend_run(historical_data) # input for breaking_gap
         add_structural_direction(historical_data) # Input for slow_trend_run
         add_slow_trend_run(historical_data) # input for breaking_gap

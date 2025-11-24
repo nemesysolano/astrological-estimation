@@ -25,14 +25,14 @@ planet_name_pairs = combinations([planet[1] for planet in astro.planets], 2  )
 def pct_difference(a, b):
     return 2*(b - a) / (a+b)
 
-def define_astrological_x(Y_combined, atr5, atr14, atr20, relative_volume): 
+def define_astrological_x(Y_combined, atr, relative_volume): 
     astro_constants = astro.astro_constants
     X_astro = []
 
     # Start columns with the two lagged features
     columns = []
     columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
-    columns.extend(['δ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATRP5', 'ATRP14', 'ATRP20','Rv'] ) # prediction_error_prev is δ_0
+    columns.extend(['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATRP', 'Rv'] ) # prediction_error_prev is δ_0
 
     for t in Y_combined.index: 
         x = []
@@ -49,7 +49,7 @@ def define_astrological_x(Y_combined, atr5, atr14, atr20, relative_volume):
             x.append(b * np.sin(f * λ))
             k+=1
     
-        x.extend([Y_combined.loc[t, 'ψ_1'] - Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr5[t], atr14[t], atr20[t], relative_volume[t]])
+        x.extend([Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
         X_astro.append(x)        
 
     X = pd.DataFrame(X_astro, index=Y_combined.index, columns=columns)
@@ -57,11 +57,10 @@ def define_astrological_x(Y_combined, atr5, atr14, atr20, relative_volume):
 
 def define_financial_x(Y_combined, atr5, atr14, atr20, relative_volume):
     # Start columns with the two lagged features δ_0
-    columns = ['δ_0', 'ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATRP5', 'ATRP14', 'ATRP20', 'Rv'] # prediction_error_prev is δ_0
+    columns = ['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATRP', 'Rv'] # prediction_error_prev is δ_0
     X = []
     for t in Y_combined.index: 
-        δ_0 = Y_combined.loc[t, 'ψ_1'] - Y_combined.loc[t, 'ψ_2']
-        x = ([δ_0, Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr5[t], atr14[t], atr20[t], relative_volume[t]])
+        x = ([Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr5[t], atr14[t], atr20[t], relative_volume[t]])
 
         X.append(x)        
 
@@ -113,9 +112,9 @@ def define_variables(train_data, validation_data, test_data, column_name, define
     Y_val_unscaled = Y_val_combined['ψ']
     Y_test_unscaled =Y_test_combined['ψ']
     
-    X_train_unscaled = define_X(Y_train_combined, train_data['ATRP5'], train_data['ATRP14'], train_data['ATRP20'], train_data['relative_volume'])    
-    X_val_unscaled = define_X(Y_val_combined, validation_data['ATRP5'], validation_data['ATRP14'], validation_data['ATRP20'], validation_data['relative_volume'])
-    X_test_unscaled = define_X(Y_test_combined, test_data['ATRP5'], test_data['ATRP14'], test_data['ATRP20'], test_data['relative_volume'])    
+    X_train_unscaled = define_X(Y_train_combined, train_data['ATRP'], train_data['relative_volume'])    
+    X_val_unscaled = define_X(Y_val_combined, validation_data['ATRP'], validation_data['relative_volume'])
+    X_test_unscaled = define_X(Y_test_combined, test_data['ATRP'], test_data['relative_volume'])    
 
     X_scaler = StandardScaler()
     X_train_scaled = X_scaler.fit_transform(X_train_unscaled)

@@ -16,19 +16,18 @@ analysing resistance/bearish momentum, ${l_t}$ (low price in OHLC bar) when anal
 
 ## Longitude-Motion Estimator for ${Y(t)}$ ##
 
-We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is the is illustrated by the table below:
+We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is illustrated by the table below:
 
-| ${A_{i,1}}$                 | ${B_{i,1}}$                 | ... | ${A_{i,7}}$                 | ${B_{i,7}}$                 |${δ_0(t)}$      | ${Y(t-i)}$   |...|${Y(t-(i+3))}$|${\mathbf{Atrp_{14}(t-i)}}$|${\mathbf{Rv}(t-i)}$ |
-|-----------------------------|-----------------------------|-----|-----------------------------|-----------------------------|----------------|--------------|---|--------------|----------------------------|---------------------|
-|${a_1 \cos(f_1λ_1(t))}$      |${b_1 \cos(f_1λ_1(t))}$      | ... |${a_7 \cos(f_7λ_7(t))}$      |${b_7 \cos(f_7λ_7(t))}$      |${δ_0(t  )}$    |${Y(t)}$      |...|${Y(t-3)}$    |${\mathbf{Atrp_{14}}(t)}$   |${\mathbf{Rv}(t)}$ |
-|${a_1 \cos(f_1λ_1(t-1))}$    |${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$    |${b_7 \cos(f_7λ_7(t-1))}$    |${δ_0(t-1)}$    |${Y(t-1)}$    |...|${Y(t-4)}$    |${\mathbf{Atrp_{14}}(t-1)}$ |${\mathbf{Rv}(t-1)}$ |
-| ...                         | ...                         | ... | ...                         | ...                         | ...            | ...          |...|              |...                         |...                  |
-|${a_1 \cos(f_1λ_1(t-(n-1)))}$|${b_1 \cos(f_1λ_1(t-(n-1)))}$| ... |${a_7 \cos(f_7λ_7(t-(n-1)))}$|${b_7 \cos(f_7λ_7(t-(n-1)))}$|${δ_0(t-(n-1))}$|${Y(t-(n-1))}$|...|${Y(t-(n+2))}$|${\mathbf{Atrp_{14}}(t-(n-1))}$|${\mathbf{Rv}(t-(n-1))}$|
-
+| ${A_{i,1}}$                 | ${B_{i,1}}$                 | ... | ${A_{i,7}}$                 | ${B_{i,7}}$                 |${Y(t-i)}$    |...|${Y(t-(i+3))}$|${\mathbf{Atrp_{14}}(t-i)}$    |${\mathbf{Rv}(t-i)}$        |
+|-----------------------------|-----------------------------|-----|-----------------------------|-----------------------------|--------------|---|--------------|-------------------------------|----------------------------|
+|${a_1 \cos(f_1λ_1(t))}$      |${b_1 \cos(f_1λ_1(t))}$      | ... |${a_7 \cos(f_7λ_7(t))}$      |${b_7 \cos(f_7λ_7(t))}$      |${Y(t)}$      |...|${Y(t-3)}$    |${\mathbf{Atrp_{14}}(t)}$      |${\mathbf{Rv}(t)}$          |
+|${a_1 \cos(f_1λ_1(t-1))}$    |${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$    |${b_7 \cos(f_7λ_7(t-1))}$    |${Y(t-1)}$    |...|${Y(t-4)}$    |${\mathbf{Atrp_{14}}(t-1)}$    |${\mathbf{Rv}(t-1)}$        |
+| ...                         | ...                         | ... | ...                         | ...                         | ...          |...| ...          | ...                           | ...                        |
+|${a_1 \cos(f_1λ_1(t-(n-1)))}$|${b_1 \cos(f_1λ_1(t-(n-1)))}$| ... |${a_7 \cos(f_7λ_7(t-(n-1)))}$|${b_7 \cos(f_7λ_7(t-(n-1)))}$|${Y(t-(n-1))}$|...|${Y(t-(n+2))}$|${\mathbf{Atrp_{14}}(t-(n-1))}$|${\mathbf{Rv}(t-(n-1))}$    |
 
 where:
 
-1. ${i}$ ranges from ${0}$ to ${n-1}$; in the table ${t-0}$ is written just as ${t}$for the sake of simplicity.
+1. ${i}$ ranges from ${0}$ to ${n-1}$; in the table ${t-0}$ is written just as ${t}$ for the sake of simplicity.
 2. ${A_{i,k}}$ and ${B_{i,k}}$ are the **traction** and **motion** factors, respectively, for planet ${k}$.
 3. ${a_k}$ and ${b_k}$ are the **gravitational** and **motion** factors, respectively, for planet ${k}$.
 4. ${f_k = \frac {2k\pi}{T}}$, where ${T}$ denotes the orbital period of planet ${k}$.
@@ -44,7 +43,7 @@ Consider the bar sequence ${\mathbf{OHLC}}$ = ${(o_{t-n}, h_{t-n}, l_{t-n}, c_{t
 
 ### Fast Trend Run ${R_{f}(t)}$ ##
 The purpose of the **fast trend run** ${R_{f}(t)}$ is to quantify the magnitude of the last directional push. If the price breaks the structural support ${l_{t-3}}$
-after only a small push (${R_{f}(t)}$ is small), then ${S(t)}$ will be large, indicating a severe, high-provability violation. 
+after only a small push (${R_{f}(t)}$ is small), then ${S(t)}$ will be large, indicating a severe, high-probability violation. 
 
 Let ${a}$ and ${b}$ be two consecutive moments in the time series. A trend begins when either: ${c_a < c_b}$ or ${c_a > c_b}$. When a **fast trend** begins, we denote ${t_f = a}$ as the **starting point** of the **fast trend**, and:
 
@@ -154,10 +153,10 @@ ${P_↓(t+1) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
 With ${G(t+1)}$ defined as the quantitative measure of the structural violation's magnitude, our next step is to engineer the DNN input features required for its prediction. The input table is
 
 | ${Y_c(t-i)}$     | ${Y_h(t-i)}$     | ${Y_l(t-i)}$     | ${L_c(t-i)}$     | ${L_h(t-i)}$     | ${L_l(t-i)}$     |${S_d(t-i)}$    |${\mathbf{Atrp_{14}}(t-i)}$    |
-|------------------|------------------|------------------|------------------|------------------|------------------|----------------|------------------------------|
+|------------------|------------------|------------------|------------------|------------------|------------------|----------------|-------------------------------|
 | ${Y_c(t)}$       | ${Y_h(t)}$       | ${Y_l(t)}$       | ${L_c(t)}$       | ${L_h(t)}$       | ${L_l(t)}$       |${S_d(t)}$      |${\mathbf{Atrp_{14}}(t)}$      |
-| ...              | ...              | ...              | ...              | ...              | ...              |...             |...                           |
-| ${Y_c(t-(n-1))}$ | ${Y_h(t-(n-1))}$ | ${Y_l(t-(n-1))}$ | ${L_c(t-(n-1))}$ | ${L_h(t-(n-1))}$ | ${L_l(t-(n-1))}$ |${S_d(t-(n-1))}$|${\mathbf{Atr_{14}}(t-(n-1))}$|
+| ...              | ...              | ...              | ...              | ...              | ...              |...             |...                            |
+| ${Y_c(t-(n-1))}$ | ${Y_h(t-(n-1))}$ | ${Y_l(t-(n-1))}$ | ${L_c(t-(n-1))}$ | ${L_h(t-(n-1))}$ | ${L_l(t-(n-1))}$ |${S_d(t-(n-1))}$|${\mathbf{Atrp_{14}}(t-(n-1))}$|
 
 where ${i}$ ranges from ${0}$ to ${n-1}$. Additionally ${Y_c(t)}$, ${Y_h(t)}$, ${Y_l(t)}$ are ${Y(t)}$ values calculated for **close**, **high** and **low** prices respectively.
 
