@@ -12,18 +12,18 @@ ${Y(t) = \frac {(p_t-p_{t-1})}{p_t+p_{t-1}} \min(1,v_t/v_{t-1})}$, where
 - ${v_{t-1}}$ traded volume at time ${t-1}$
 
 This oscillator detects strong bullish (${Y(t) \rarr 1}$) or bearish (${Y(t) \rarr -1}$) behavior. Moreover, ${p_t}$ represents ${h_t}$ (high price in OHLC bar) when
-analysing resistance/bearish momentum, and ${l_t}$ (low price in OHLC bar) when analysing support/bullish momentum.
+analysing resistance/bearish momentum, ${l_t}$ (low price in OHLC bar) when analysing support/bullish momentum or ${c_t}$ close price when analysing trends.
 
 ## Longitude-Motion Estimator for ${Y(t)}$ ##
 
 We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is the is illustrated by the table below:
 
-| ${A_{i,1}}$             | ${B_{i,1}}$                 | ... | ${A_{i,7}}$             | ${B_{i,7}}$             |${δ_0(t)}$  | ${Y(t-i)}$|...|${Y(t-(i+3))}$        | ${\mathbf{Atr_{14}(t-i)}}$     | ${\mathbf{Rv(t-i)}}$     |
-|-------------------------|-----------------------------|-----|-------------------------|-------------------------|------------|-----------|---|----------------------|--------------------------------|--------------------------|
-|${a_1 \cos(f_1λ_1(t-1))}$|${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$|${b_7 \cos(f_7λ_7(t-1))}$|${δ_0(t-1)}$|${Y(t-1)}$ |...|${Y(t-4)}$            | ${Atr_{14}(t-1)}$              | ${\mathbf{Rv(t-1)}}$     |
-|${a_1 \cos(f_1λ_1(t-2))}$|${b_1 \cos(f_1λ_1(t-2))}$    | ... |${a_7 \cos(f_7λ_7(t-2))}$|${b_7 \cos(f_7λ_7(t-2))}$|${δ_0(t-2)}$|${Y(t-2)}$ |...|${Y(t-5)}$            | ${Atr_{14}(t-2)}$              | ${\mathbf{Rv(t-2)}}$     |
-| ...                     | ...                         | ... | ...                     | ...                     | ...        | ...       |...|                      | ...                            | ...                      |
-|${a_1 \cos(f_1λ_1(t-n))}$|${b_1 \cos(f_1λ_1(t_{j-n}))}$| ... |${a_7 \cos(f_7λ_7(t-n))}$|${b_7 \cos(f_7λ_7(t-n))}$|${δ_0(t-n)}$|${Y(t-1)}$ |...|${Y(t-(n+3))}$        | ${Atr_{14}(t_{j-n})}$          | ${\mathbf{Rv(t_{j-n})}}$ |
+| ${A_{i,1}}$             | ${B_{i,1}}$                 | ... | ${A_{i,7}}$             | ${B_{i,7}}$             |${δ_0(t)}$  | ${Y(t-i)}$|...|${Y(t-(i+3))}$|${\mathbf{Atrp_{5}(t-i)}}$|${\mathbf{Atrp_{14}(t-i)}}$|${\mathbf{Atrp_{20}(t-i)}}$|${\mathbf{Rv(t-i)}}$|
+|-------------------------|-----------------------------|-----|-------------------------|-------------------------|------------|-----------|---|--------------|--------------------------|---------------------------|---------------------------|--------------------|
+|${a_1 \cos(f_1λ_1(t-1))}$|${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$|${b_7 \cos(f_7λ_7(t-1))}$|${δ_0(t-1)}$|${Y(t-1)}$ |...|${Y(t-4)}$    |${\mathbf{Atrp_{5}(t-1)}}$|${\mathbf{Atrp_{14}(t-1)}}$|${\mathbf{Atrp_{20}(t-1)}}$|${\mathbf{Rv(t-1)}}$|
+|${a_1 \cos(f_1λ_1(t-2))}$|${b_1 \cos(f_1λ_1(t-2))}$    | ... |${a_7 \cos(f_7λ_7(t-2))}$|${b_7 \cos(f_7λ_7(t-2))}$|${δ_0(t-2)}$|${Y(t-2)}$ |...|${Y(t-5)}$    |${\mathbf{Atrp_{5}(t-2)}}$|${\mathbf{Atrp_{14}(t-2)}}$|${\mathbf{Atrp_{20}(t-2)}}$|${\mathbf{Rv(t-2)}}$|
+| ...                     | ...                         | ... | ...                     | ...                     | ...        | ...       |...|              |...                       |...                        |...                        |...                 |
+|${a_1 \cos(f_1λ_1(t-n))}$|${b_1 \cos(f_1λ_1(t_{j-n}))}$| ... |${a_7 \cos(f_7λ_7(t-n))}$|${b_7 \cos(f_7λ_7(t-n))}$|${δ_0(t-n)}$|${Y(t-1)}$ |...|${Y(t-(n+3))}$|${\mathbf{Atrp_{5}(t-n)}}$|${\mathbf{Atrp_{14}(t-n)}}$|${\mathbf{Atrp_{20}(t-n)}}$|${\mathbf{Rv(t-n)}}$|
 
 
 where:
@@ -34,7 +34,7 @@ The values in the above table are described as follows:
 2. ${a_k}$ and ${b_k}$ are the **gravitational** and **motion** factors, respectively, for planet ${k}$.
 3. ${f_k = \frac {2k\pi}{T}}$, where ${T}$ denotes the orbital period of planet ${k}$.
 4. ${λ_k(t-i)}$ represents the **heliocentric longitude** of planet ${k}$ at time ${t-i}$.
-5.  ${\mathbf{Atr_{14}(t-i)}}$ signifies the 14-day **average true range** (implying that ${t > 14}$ days).
+5.  ${\mathbf{Atrp_{5}(t-i)}}$, ${\mathbf{Atrp_{14}(t-i)}}$, ${\mathbf{Atrp_{20}(t-i)}}$ signify the 5, 14 and 20 days **average true range** (implying that ${t > 20}$ days) divided by price.
 6. ${Y(t-i)}$ to ${Y(t-(i+3))}$ are the values for the four most recent days, starting from and including ${t-i}$.
 7. ${\mathbf{Rv(t-i)}}$ is ${\frac{v_{t-i}}{o_{t-i}}}$ signifies the lagged **Relative Volume** (or Volume Ratio), defined as the ratio between traded volume (${v_{t-i}}$) and outstanding shares (${o_{t-i}}$).
 8. ${δ_0(t) = Y(t) - Y(t-1)}$
@@ -164,7 +164,3 @@ With ${G(t+1)}$ defined as the quantitative measure of the structural violation'
 where ${i}$ ranges from ${0}$ to ${n-1}$. Additionally ${Y_c(t)}$, ${Y_h(t)}$, ${Y_l(t)}$ are ${Y(t)}$ values calculated for **close**, **high** and **low** prices respectively.
 
 Our DNN predictor for ${G(t+1)}$ is denoted as ${\hat G(t+1)}$
-
-# Next Step #
-- Ask Gemini to perform the same analysis that Copilot did.
-- If Gemini confirms that financial-only DNN is more robust, stable, and accurate across ATR regimes, remove astrological input as suggested by Copilot and adopt Copilot suggestions for improving the winning model even more.

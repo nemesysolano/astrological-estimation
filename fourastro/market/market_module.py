@@ -22,7 +22,7 @@ def remove_timezone_from_json_dates(file_path):
     with open(file_path, 'w') as f:
         f.write(modified_content)
 
-def add_average_true_range(historical_data, period):
+def add_average_true_range_percentage(historical_data, period):
     high = historical_data['High']
     low = historical_data['Low']
     close = historical_data['Close']
@@ -36,9 +36,8 @@ def add_average_true_range(historical_data, period):
     # Calculate Average True Range (ATR) using an Exponential Moving Average
     atr = tr.ewm(alpha=1/period, adjust=False).mean()
 
-    historical_data['Atr_Close'] = atr
-    historical_data['Atr_Low'] = atr
-    historical_data['Atr_High'] = atr
+    # Calculate ATRP and add it to the DataFrame
+    historical_data[f"ATRP{period}"] = (atr / close)
 
 def add_relative_volume(ticker, historical_data):
     market_cap = ticker.info.get('marketCap')
@@ -265,7 +264,9 @@ def import_market_data(symbol):
         historical_data = pd.read_csv(output_path, parse_dates=True, date_format='%Y-%m-%d', index_col='Date')
         
         add_relative_volume(ticker, historical_data)
-        add_average_true_range(historical_data, 14) # Required for G(t+1)
+        add_average_true_range_percentage(historical_data, 5) # Required for G(t+1)
+        add_average_true_range_percentage(historical_data, 14) # Required for G(t+1)
+        add_average_true_range_percentage(historical_data, 20) # Required for G(t+1)
         add_fast_trend_run(historical_data) # input for breaking_gap
         add_structural_direction(historical_data) # Input for slow_trend_run
         add_slow_trend_run(historical_data) # input for breaking_gap
