@@ -14,4 +14,4 @@ if __name__ == "__main__":
     model = args.model
 
     import_market_data(ticker)
-    longitude_motion_estimator(ticker, price, model)
+    # longitude_motion_estimator(ticker, price, model)
