@@ -1,4 +1,4 @@
-from astro import initialize_astro_data
+from fourastro.astro.module import get_astro_constants
 from market import import_market_data
 from analysis import longitude_motion_estimator
 import argparse
@@ -13,6 +13,5 @@ if __name__ == "__main__":
     price = args.price
     model = args.model
 
-    initialize_astro_data()
     import_market_data(ticker)
     longitude_motion_estimator(ticker, price, model)

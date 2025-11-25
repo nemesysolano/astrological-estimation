@@ -22,51 +22,18 @@ l2 = tf.keras.regularizers.l2
 
 planet_name_pairs = combinations([planet[1] for planet in astro.planets], 2  )
 
+astrological_varriables = ["A_0","A_1","A_2","A_3","A_4","A_5","A_6","A_7","A_8","A_9","A_10","A_11"]
+financial_variables = ["Y_Low","Y_High","Y_Close","ATRP","BBW_Low","BBW_High","BBW_Close","RVO_Low","RVO_High","RVO_Close","relative_volume"]
+
 def pct_difference(a, b):
     return 2*(b - a) / (a+b)
 
-def define_astrological_x(Y_combined, atr, relative_volume): 
-    astro_constants = astro.astro_constants
-    X_astro = []
+def define_astrological_x(historical_data): 
+    result = astrological_varriables + financial_variables
+    return historical_data[result]
 
-    # Start columns with the two lagged features
-    columns = []
-    columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
-    columns.extend(['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATRP', 'Rv'] ) # prediction_error_prev is δ_0
-
-    for t in Y_combined.index: 
-        x = []
-        k = 1
-        for planet in astro.planets:
-            # Astrological calculation remains the same, calculating for time t
-            planet_name = planet[1]
-            λ = astro_constants[planet_name]['λ'][t]
-            a = astro_constants[planet_name]['g']
-            b = astro_constants[planet_name]['b']
-            T = astro_constants[planet_name]['T']
-            f = 2 * k * np.pi /T            
-            x.append(a * np.cos(f * λ))
-            x.append(b * np.sin(f * λ))
-            k+=1
-    
-        x.extend([Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr[t], relative_volume[t]])
-        X_astro.append(x)        
-
-    X = pd.DataFrame(X_astro, index=Y_combined.index, columns=columns)
-    return X
-
-def define_financial_x(Y_combined, atr5, atr14, atr20, relative_volume):
-    # Start columns with the two lagged features δ_0
-    columns = ['ψ_1', 'ψ_2', 'ψ_3', 'ψ_4', 'ATRP', 'Rv'] # prediction_error_prev is δ_0
-    X = []
-    for t in Y_combined.index: 
-        x = ([Y_combined.loc[t, 'ψ_1'], Y_combined.loc[t, 'ψ_2'], Y_combined.loc[t, 'ψ_3'], Y_combined.loc[t, 'ψ_4'], atr5[t], atr14[t], atr20[t], relative_volume[t]])
-
-        X.append(x)        
-
-    X = pd.DataFrame(X, index=Y_combined.index, columns=columns)
-
-    return X
+def define_financial_x(historical_data):
+    return historical_data[financial_variables]
 
 def define_Y(dataset, column_name):
     # Causal Calculation of Y(t) = [(p_t - p_{t-1}) / (p_t + p_{t-1})] * min(1, v_t / v_{t-1})
@@ -84,37 +51,16 @@ def define_Y(dataset, column_name):
     # 2. Create Y(t) series
     Y = pd.DataFrame(price_pct_diff * volume_exp_diff, index=s_index, columns=['ψ'])
     
-    # 3. Create lagged features
-    Y_lag1 = Y['ψ'].shift(periods=1)
-    Y_lag1.name = 'ψ_1'
-    
-    Y_lag2 = Y['ψ'].shift(periods=2)
-    Y_lag2.name = 'ψ_2'
-    
-    Y_lag3 = Y['ψ'].shift(periods=3)
-    Y_lag3.name = 'ψ_3'
-
-    Y_lag4 = Y['ψ'].shift(periods=4)
-    Y_lag4.name = 'ψ_4'
-
-    # 4. Combine and clean
-    Y_combined = pd.concat([Y['ψ'], Y_lag1, Y_lag2, Y_lag3, Y_lag4], axis=1)
-    Y_combined.dropna(inplace=True)
-    
-    return Y_combined
+    return Y
 
 def define_variables(train_data, validation_data, test_data, column_name, define_X):        
-    Y_train_combined = define_Y(train_data, column_name)
-    Y_val_combined = define_Y(validation_data, column_name)
-    Y_test_combined = define_Y(test_data, column_name)
-
-    Y_train_unscaled = Y_train_combined['ψ']
-    Y_val_unscaled = Y_val_combined['ψ']
-    Y_test_unscaled =Y_test_combined['ψ']
+    Y_train_unscaled = define_Y(train_data, column_name)
+    Y_val_unscaled = define_Y(validation_data, column_name)
+    Y_test_unscaled =define_Y(test_data, column_name)
     
-    X_train_unscaled = define_X(Y_train_combined, train_data['ATRP'], train_data['relative_volume'])    
-    X_val_unscaled = define_X(Y_val_combined, validation_data['ATRP'], validation_data['relative_volume'])
-    X_test_unscaled = define_X(Y_test_combined, test_data['ATRP'], test_data['relative_volume'])    
+    X_train_unscaled = define_X(train_data).loc[Y_train_unscaled.index]
+    X_val_unscaled = define_X(validation_data).loc[Y_val_unscaled.index]
+    X_test_unscaled = define_X(test_data).loc[Y_test_unscaled.index]
 
     X_scaler = StandardScaler()
     X_train_scaled = X_scaler.fit_transform(X_train_unscaled)
@@ -122,9 +68,9 @@ def define_variables(train_data, validation_data, test_data, column_name, define
     X_test_scaled = X_scaler.transform(X_test_unscaled)
     
     Y_scaler =  MinMaxScaler( feature_range=(-1, 1))
-    Y_train_scaled = Y_train_unscaled.to_frame()
-    Y_val_scaled = Y_val_unscaled.to_frame()
-    Y_test_scaled = Y_test_unscaled.to_frame()
+    Y_train_scaled = Y_train_unscaled
+    Y_val_scaled = Y_val_unscaled
+    Y_test_scaled = Y_test_unscaled
     
     return (
         X_train_scaled, X_val_scaled, X_test_scaled,
@@ -153,28 +99,23 @@ def refined_dnn_astrological_model(X_train_scaled):
     # ------------------ Input Layer ------------------
     input_tensor = Input(shape=(input_dim,))
 
-    # Astrological features are the first 14 columns
-    astro_input = input_tensor[:, 0:14] 
-
-    # Previous prediction error is the 15th column
-    error_input = input_tensor[:, 14:15]
-
-    # Market features (4 Lags, ATRP, Rv) are the last 6 columns
-    market_input = input_tensor[:, 15:]
+    # Astrological features are the first 14 columns, market features are the rest
+    astro_input = input_tensor[:, :len(astrological_varriables)]
+    market_input = input_tensor[:, len(astrological_varriables):]
 
     # ------------------ Branch 1: Market Context (Strong Signal) ------------------
     # ADDED L2 REGULARIZATION
     market_branch = Dense(64, activation='relu', kernel_regularizer=reg_fin, name='market_feature_proc')(market_input)
     market_branch = BatchNormalization()(market_branch)
-    
+
     # ------------------ Branch 2: Astrological Features (Weak/Complex Signal) ------------------
     # ADDED L2 REGULARIZATION
     astro_branch = Dense(64, activation='relu', kernel_regularizer=reg_astro, name='astro_feature_proc')(astro_input)
     astro_branch = BatchNormalization()(astro_branch)
-    
+
     # ------------------ Merge and Deep Processing ------------------
     # Concatenate the processed features
-    merged = Concatenate()([market_branch, astro_branch, error_input]) 
+    merged = Concatenate()([market_branch, astro_branch])
     
     # Deep layers for cross-feature interaction
     # ADDED L2 REGULARIZATION
@@ -207,33 +148,27 @@ def refined_dnn_financial_model(X_train_scaled):
     # ------------------ Input Layer ------------------
     input_tensor = Input(shape=(input_dim,))
     
-    # Previous prediction error is the 1st column
-    error_input = input_tensor[:, 0:1]
-    
-    # Market features are the rest
-    market_input = input_tensor[:, 1:]
+    # All inputs are market features
+    market_input = input_tensor
 
     # ------------------ Branch 1: Market Context (Strong Signal) ------------------
     # ADDED L2 REGULARIZATION
     market_branch = Dense(16, activation='relu', kernel_regularizer=regularizer, name='market_feature_proc')(market_input)
-    x = BatchNormalization()(market_branch)
+    x = BatchNormalization()(market_branch) # x is now market_branch
     
     # Deep layers for cross-feature interaction
     # ADDED L2 REGULARIZATION
     x = Dense(64, activation='relu', kernel_regularizer=regularizer)(x)
     x = BatchNormalization()(x)
     x = Dropout(0.2)(x) 
-    
+
     # ADDED L2 REGULARIZATION
     x = Dense(32, activation='relu', kernel_regularizer=regularizer)(x)
     x = BatchNormalization()(x)
     x = Dropout(0.1)(x)
 
-    # Merge the error input with the processed market features``
-    merged = Concatenate()([x, error_input])
-
     # Output layer (tanh forces output to [-1, 1] range)
-    output_tensor = Dense(1, activation='tanh')(merged)
+    output_tensor = Dense(1, activation='tanh')(x)
     
     # Define the full model
     model = Model(inputs=input_tensor, outputs=output_tensor)

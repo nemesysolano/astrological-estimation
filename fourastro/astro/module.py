@@ -26,7 +26,6 @@ start_date = "1970-01-01"
 end_date = "2070-01-01"
 module_dir = os.path.dirname(__file__)
 data_dir = os.path.join(module_dir, 'data')
-astro_constants = {}
 
 def download_astro_data(planet_id, planet_name, data_dir):    
     ephemerides_output_file = os.path.join(data_dir, planet_name + '.csv')
@@ -53,7 +52,8 @@ def convert_eph_date_string(date_str):
 def convert_elm_date_string(date_str):
     return pd.to_datetime(date_str, format = "A.D. %Y-%b-%d %H:%M:%S.%f")
 
-def initialize_astro_data():
+def get_astro_constants():
+    astro_constants = {}
     transform_eph_time = np.vectorize(convert_eph_date_string)
     transform_elm_time = np.vectorize(convert_elm_date_string)
     if not os.path.exists(data_dir):
@@ -75,5 +75,7 @@ def initialize_astro_data():
             "λ": ephemerides_data['EclLon'],
             "g": mass / (dist*dist),
             "T": period
-        }
+        }        
+
+    return astro_constants
     

@@ -5,6 +5,9 @@ import re
 import numpy as np
 from typing import Callable, Union
 
+from fourastro import astro
+from fourastro.astro.module import get_astro_constants
+
 def read_csv(path):
     historical_data = pd.read_csv(path, parse_dates=True, date_format='%Y-%m-%d ', index_col='Date')
     return historical_data
@@ -37,7 +40,54 @@ def add_average_true_range_percentage(historical_data, period):
     atr = tr.ewm(alpha=1/period, adjust=False).mean()
 
     # Calculate ATRP and add it to the DataFrame
-    historical_data[f"ATRP"] = atr / close
+    historical_data[f'ATRP'] = atr / close
+    historical_data.dropna(inplace=True)
+
+def add_bollinger_bands_width(historical_data, price):
+    period = 20
+    close_prices = historical_data[price]
+
+    # Calculate the Middle Band (Simple Moving Average)
+    middle_band = close_prices.rolling(window=period).mean()
+
+    # Calculate the Standard Deviation
+    std_dev = close_prices.rolling(window=period).std()
+
+    # Calculate Upper and Lower Bands (2 standard deviations is common)
+    upper_band = middle_band + (2 * std_dev)
+    lower_band = middle_band - (2 * std_dev)
+
+    historical_data[f"BBW_{price}"] = (upper_band - lower_band) / middle_band
+    historical_data.dropna(inplace=True)
+
+def add_relative_volatility_index(historical_data, period, price):
+    close_prices = historical_data[price]
+    std_dev = close_prices.rolling(window=period).std()
+
+    # Calculate price changes
+    price_change = close_prices.diff()
+
+    # Calculate Upward and Downward Volatility
+    up_vol = np.where(price_change > 0, std_dev, 0)
+    down_vol = np.where(price_change < 0, std_dev, 0)
+
+    # Calculate Exponential Moving Averages of Up and Down Volatility
+    avg_up_vol = pd.Series(up_vol, index=historical_data.index).ewm(span=period, adjust=False).mean()
+    avg_down_vol = pd.Series(down_vol, index=historical_data.index).ewm(span=period, adjust=False).mean()
+
+    # Calculate RVI
+    rvi = 100 * avg_up_vol / (avg_up_vol + avg_down_vol)
+    historical_data[f"RVO_{price}"] = rvi
+    historical_data.dropna(inplace=True)
+
+def add_realized_volatility(historical_data, price):
+    window = 5
+    log_returns = np.log(historical_data[price] / historical_data[price].shift(1))
+    
+    # The Realized Volatility is the square root of the sum of squared log returns.
+    realized_volatility = log_returns.rolling(window=window).std() * np.sqrt(window)
+    historical_data[f"RVO_{price}"] = realized_volatility
+    historical_data.dropna(inplace=True)
 
 def add_relative_volume(ticker, historical_data):
     market_cap = ticker.info.get('marketCap')
@@ -247,7 +297,52 @@ def add_directional_probabilities(historical_data) -> pd.DataFrame:
 
     return df
 
-def import_market_data(symbol):
+def add_astrological_longitude(historical_data):
+    astro_constants = get_astro_constants()
+    X_astro = []
+    print(astro_constants.keys())
+    
+    # Start columns with the two lagged features
+    columns = []
+    columns.extend([ f"A_{i}" for i in range(len(astro.planets) * 2)])
+
+    for t in historical_data.index: 
+        x = []
+        k = 1
+        for planet in astro.planets:
+            # Astrological calculation remains the same, calculating for time t
+            planet_name = planet[1]
+            λ = astro_constants[planet_name]['λ'][t]
+            a = astro_constants[planet_name]['g']
+            b = astro_constants[planet_name]['b']
+            T = astro_constants[planet_name]['T']
+            f = 2 * k * np.pi /T            
+            x.append(a * np.cos(f * λ))
+            x.append(b * np.sin(f * λ))
+            k+=1
+            
+        X_astro.append(x)        
+
+    historical_data[columns] = pd.DataFrame(X_astro, index=historical_data.index, columns=columns)
+    
+def add_price_volume_strength(historical_data, price):
+    price_series = historical_data[price]
+    volume_series = historical_data['Volume']
+
+    p_t = price_series
+    p_t_minus_1 = price_series.shift(1)
+    v_t = volume_series
+    v_t_minus_1 = volume_series.shift(1)
+
+    price_change_ratio = (p_t - p_t_minus_1) / (p_t + p_t_minus_1)
+
+    volume_ratio = v_t / v_t_minus_1
+    capped_volume_ratio = np.minimum(1, volume_ratio)
+
+    y_t = price_change_ratio * capped_volume_ratio
+    historical_data[f'Y_{price}'] = y_t
+
+def import_market_data(symbol):    
     module_dir = os.path.dirname(__file__)
     data_dir = os.path.join(module_dir, 'data')
     output_path = os.path.join(data_dir, f"{symbol}.csv")
@@ -262,16 +357,32 @@ def import_market_data(symbol):
 
         remove_timezone_from_json_dates(output_path)
         historical_data = pd.read_csv(output_path, parse_dates=True, date_format='%Y-%m-%d', index_col='Date')
-        
+        add_astrological_longitude(historical_data)
+        add_price_volume_strength(historical_data, 'Low')
+        add_price_volume_strength(historical_data, 'High')
+        add_price_volume_strength(historical_data, 'Close')
+        add_average_true_range_percentage(historical_data, 14)
+        add_bollinger_bands_width(historical_data, 'Low')
+        add_bollinger_bands_width(historical_data, 'High')
+        add_bollinger_bands_width(historical_data, 'Close')
+        add_realized_volatility(historical_data, 'Low')
+        add_realized_volatility(historical_data, 'High')
+        add_realized_volatility(historical_data, 'Close')
+        add_relative_volatility_index(historical_data, 14, 'High')
+        add_relative_volatility_index(historical_data, 14, 'Low')
         add_relative_volume(ticker, historical_data)
-        add_average_true_range_percentage(historical_data, 14) # Required for G(t+1)
-        add_fast_trend_run(historical_data) # input for breaking_gap
-        add_structural_direction(historical_data) # Input for slow_trend_run
-        add_slow_trend_run(historical_data) # input for breaking_gap
-        add_breaking_gap(historical_data) # input fast_swing_ratio
-        add_fast_swing_ratio(historical_data) #input for directional probabilities
-        add_slow_swing_ratio(historical_data) #input for directional probabilities
-        historical_data = add_directional_probabilities(historical_data)
+
+        # 
+        # add_bollinger_bands_width(historical_data, 20) # Required for G(t+1)
+        # add_realized_volatility(historical_data) # Required for G(t+1)
+        # add_relative_volatility_index(historical_data, 14)
+        # add_fast_trend_run(historical_data) # input for breaking_gap
+        # add_structural_direction(historical_data) # Input for slow_trend_run
+        # add_slow_trend_run(historical_data) # input for breaking_gap
+        # add_breaking_gap(historical_data) # input fast_swing_ratio
+        # add_fast_swing_ratio(historical_data) #input for directional probabilities
+        # add_slow_swing_ratio(historical_data) #input for directional probabilities
+        # historical_data = add_directional_probabilities(historical_data)
 
         historical_data.to_csv(output_path)        
 

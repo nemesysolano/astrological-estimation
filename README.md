@@ -18,23 +18,24 @@ analysing resistance/bearish momentum, ${l_t}$ (low price in OHLC bar) when anal
 
 We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is illustrated by the table below:
 
-| ${A_{i,1}}$                 | ${B_{i,1}}$                 | ... | ${A_{i,7}}$                 | ${B_{i,7}}$                 |${Y(t-i)}$    |...|${Y(t-(i+3))}$|${\mathbf{Atrp_{14}}(t-i)}$    |${\mathbf{Rv}(t-i)}$        |
-|-----------------------------|-----------------------------|-----|-----------------------------|-----------------------------|--------------|---|--------------|-------------------------------|----------------------------|
-|${a_1 \cos(f_1λ_1(t))}$      |${b_1 \cos(f_1λ_1(t))}$      | ... |${a_7 \cos(f_7λ_7(t))}$      |${b_7 \cos(f_7λ_7(t))}$      |${Y(t)}$      |...|${Y(t-3)}$    |${\mathbf{Atrp_{14}}(t)}$      |${\mathbf{Rv}(t)}$          |
-|${a_1 \cos(f_1λ_1(t-1))}$    |${b_1 \cos(f_1λ_1(t-1))}$    | ... |${a_7 \cos(f_7λ_7(t-1))}$    |${b_7 \cos(f_7λ_7(t-1))}$    |${Y(t-1)}$    |...|${Y(t-4)}$    |${\mathbf{Atrp_{14}}(t-1)}$    |${\mathbf{Rv}(t-1)}$        |
-| ...                         | ...                         | ... | ...                         | ...                         | ...          |...| ...          | ...                           | ...                        |
-|${a_1 \cos(f_1λ_1(t-(n-1)))}$|${b_1 \cos(f_1λ_1(t-(n-1)))}$| ... |${a_7 \cos(f_7λ_7(t-(n-1)))}$|${b_7 \cos(f_7λ_7(t-(n-1)))}$|${Y(t-(n-1))}$|...|${Y(t-(n+2))}$|${\mathbf{Atrp_{14}}(t-(n-1))}$|${\mathbf{Rv}(t-(n-1))}$    |
+| Feature Name | Feature Type | Price Series | Notation | Strategic Role |
+| :--- | :--- | :--- | :--- | :--- |
+|  ✔ **Astrological Longitude Cosine** | Astrological | N/A | ${a_1 \cos(f_1λ_1(t))}$ ... ${a_7 \cos(f_1λ_1(t))}$ | Measures the sine component of the angular separation for the 7 primary moving bodies. |
+|  ✔ **Astrological Longitude Sine** | Astrological | N/A |${a_1 \sin(f_1λ_1(t))}$ ... ${a_7 \sin(f_1λ_1(t))}$ | Measures the cosine component of the angular separation for the 7 primary moving bodies. |
+|  ✔ **Price-Volume Strength Osc.** | Price-Volume | Close ($\mathbf{c_t}$) | ${\mathbf{Y_c}(t-i)}$ | Price-Volume strength on the Close price series. |
+|  ✔ **Price-Volume Strength Osc.** | Price-Volume | High ($\mathbf{h_t}$) | ${\mathbf{Y_h}(t-i)}$ | Price-Volume strength on the High price series. |
+|  ✔ **Price-Volume Strength Osc.** | Price-Volume | Low ($\mathbf{l_t}$) | ${\mathbf{Y_l}(t-i)}$ | Price-Volume strength on the Low price series. |
+|  ✔ **Average True Range %** | Volatility (Magnitude) | General (TR-based) | ${\mathbf{Atrp_{14}}(t-i)}$ | Overall volatility baseline for the model. |
+|  ✔ **Bollinger Band Width** | Volatility (Cycle) | Close ($\mathbf{c_t}$) | ${\mathbf{BBW_c}(t-i)}$ | Measures general volatility cycle over the closing price. |
+|  ✔ **Bollinger Band Width** | Volatility (Cycle) | High ($\mathbf{h_t}$) | ${\mathbf{BBW_h}(t-i)}$ | Volatility cycle specifically near **Resistance** (upper boundary). |
+|  ✔ **Bollinger Band Width** | Volatility (Cycle) | Low ($\mathbf{l_t}$) | ${\mathbf{BBW_l}(t-i)}$ | Volatility cycle specifically near **Support** (lower boundary). |
+|  ✔ **Realized Volatility** | Volatility (Magnitude) | Close ($\mathbf{c_t}$) | ${\mathbf{Rvo_c}(t-i)}$ | General magnitude signal of price movement. |
+|  ✔ **Realized Volatility** | Volatility (Magnitude) | High ($\mathbf{h_t}$) | ${\mathbf{Rvo_h}(t-i)}$ | **Magnitude** of movement specifically near $\uparrow$ resistance. |
+|  ✔ **Realized Volatility** | Volatility (Magnitude) | Low ($\mathbf{l_t}$) | ${\mathbf{Rvo_l}(t-i)}$ | **Magnitude** of movement specifically near $\downarrow$ support. |
+|  ✔ **Relative Volatility Index** | Volatility (Direction) | High ($\mathbf{h_t}$) | ${\mathbf{RVI_{14,h}}(t-i)}$ | **Directional Bias** (Up/Down strength) near $\uparrow$ resistance. |
+|  ✔ **Relative Volatility Index** | Volatility (Direction) | Low ($\mathbf{l_t}$) | ${\mathbf{RVI_{14,l}}(t-i)}$ | **Directional Bias** (Up/Down strength) near $\downarrow$ support. |
+|  ✔ **Relative Volume** | Price-Volume | General (Volume) | ${\mathbf{Rv}(t-i)}$ | Volume strength baseline, independent of price series. |
 
-where:
-
-1. ${i}$ ranges from ${0}$ to ${n-1}$; in the table ${t-0}$ is written just as ${t}$ for the sake of simplicity.
-2. ${A_{i,k}}$ and ${B_{i,k}}$ are the **traction** and **motion** factors, respectively, for planet ${k}$.
-3. ${a_k}$ and ${b_k}$ are the **gravitational** and **motion** factors, respectively, for planet ${k}$.
-4. ${f_k = \frac {2k\pi}{T}}$, where ${T}$ denotes the orbital period of planet ${k}$.
-5. ${λ_k(t-i)}$ represents the **heliocentric longitude** of planet ${k}$ at time ${t-i}$.
-6.  ${\mathbf{Atrp_{5}(t-i)}}$, ${\mathbf{Atrp_{14}(t-i)}}$, ${\mathbf{Atrp_{20}(t-i)}}$ signify the 5, 14 and 20 days **average true range** (implying that ${t > 20}$ days) divided by price.
-7. ${Y(t-i)}$ to ${Y(t-(i+3))}$ are the values for the four most recent days, starting from and including ${t-i}$.
-8. ${\mathbf{Rv(t-i)}}$ is ${\frac{v_{t-i}}{o_{t-i}}}$ signifies the lagged **Relative Volume** (or Volume Ratio), defined as the ratio between traded volume (${v_{t-i}}$) and outstanding shares (${o_{t-i}}$).
 
 The design of this input table is predicated on the statistical validity of W.D. Gann's theories.
 

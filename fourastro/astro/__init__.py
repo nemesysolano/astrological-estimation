@@ -1,1 +1,1 @@
-from .module import initialize_astro_data, planets, astro_constants
+from .module import planets, get_astro_constants
