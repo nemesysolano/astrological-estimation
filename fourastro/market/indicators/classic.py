@@ -1,35 +1,7 @@
 
-from astro import get_astro_constants, planets
 import pandas as pd
 import numpy as np
 
-def add_astrological_longitude(historical_data):
-    astro_constants = get_astro_constants()
-    X_astro = []
-    print(astro_constants.keys())
-    
-    # Start columns with the two lagged features
-    columns = []
-    columns.extend([ f"A_{i}" for i in range(len(planets) * 2)])
-
-    for t in historical_data.index: 
-        x = []
-        k = 1
-        for planet in planets:
-            # Astrological calculation remains the same, calculating for time t
-            planet_name = planet[1]
-            λ = astro_constants[planet_name]['λ'][t]
-            a = astro_constants[planet_name]['g']
-            b = astro_constants[planet_name]['b']
-            T = astro_constants[planet_name]['T']
-            f = 2 * k * np.pi /T            
-            x.append(a * np.cos(f * λ))
-            x.append(b * np.sin(f * λ))
-            k+=1
-            
-        X_astro.append(x)        
-
-    historical_data[columns] = pd.DataFrame(X_astro, index=historical_data.index, columns=columns)
 
 def add_price_volume_strength(historical_data, price):
     price_series = historical_data[price]
@@ -43,10 +15,10 @@ def add_price_volume_strength(historical_data, price):
     price_change_ratio = (p_t - p_t_minus_1) / (p_t + p_t_minus_1)
 
     volume_ratio = v_t / v_t_minus_1
-    capped_volume_ratio = np.minimum(1, volume_ratio)
+    capped_volume_ratio = np.minimum(1, volume_ratio) # np.minimum(1, volume_ratio)
+    y_t = price_change_ratio * capped_volume_ratio    
 
-    y_t = price_change_ratio * capped_volume_ratio
-    historical_data[f'Y_{price}'] = y_t
+    historical_data[f'Y_{price}'] =  y_t
     historical_data.dropna(inplace=True)
 
 def add_average_true_range_percentage(historical_data, period):
@@ -110,10 +82,10 @@ def add_relative_volatility_index(historical_data, period, price):
 
     # Calculate RVI
     rvi = 100 * avg_up_vol / (avg_up_vol + avg_down_vol)
-    historical_data[f"RVO_{price}"] = rvi
+    historical_data[f"RVI_{price}"] = rvi
     historical_data.dropna(inplace=True)
 
 def add_relative_volume(ticker, historical_data):
     market_cap = ticker.info.get('marketCap')
-    historical_data['relative_volume'] = historical_data['Volume'] / (market_cap / historical_data['Close'])    
+    historical_data['RV'] = historical_data['Volume'] / (market_cap / historical_data['Close'])    
     historical_data.dropna(inplace=True)        

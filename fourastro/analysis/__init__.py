@@ -1,1 +1,1 @@
-from .longitude_motion_estimator import longitude_motion_estimator
+from .analysys_module import analyze

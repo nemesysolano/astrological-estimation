@@ -1,4 +1,4 @@
-# The Astrological Indicator #
+# Surfing with Market Micro-Cycles and Momemtum #
 
 ## Price-Volume Strength Oscillator ##
 
@@ -14,30 +14,77 @@ ${Y(t) = \frac {(p_t-p_{t-1})}{p_t+p_{t-1}} \min(1,v_t/v_{t-1})}$, where
 This oscillator detects strong bullish (${Y(t) \rarr 1}$) or bearish (${Y(t) \rarr -1}$) behavior. Moreover, ${p_t}$ represents ${h_t}$ (high price in OHLC bar) when
 analysing resistance/bearish momentum, ${l_t}$ (low price in OHLC bar) when analysing support/bullish momentum or ${c_t}$ close price when analysing trends.
 
-## Longitude-Motion Estimator for ${Y(t)}$ ##
+### Prive Volume Estimator for ${Y(t+1)}$ ###
 
-We define ${L(t)}$ as the **price-volume strength** estimator for ${Y(t)}$. ${L(t)}$ is a neural network whose input is illustrated by the table below:
+We define ${\hat Y(t+1)}$ as the **price-volume strength** estimator for ${Y(t+1)}$.  ${\hat Y(t+1)}$ is a neural network whose feature will be selected from the listing table below.
 
-| Feature Name | Feature Type | Price Series | Notation | Strategic Role |
-| :--- | :--- | :--- | :--- | :--- |
-|  ✔ **Astrological Longitude Cosine** | Astrological | N/A | ${a_1 \cos(f_1λ_1(t))}$ ... ${a_7 \cos(f_1λ_1(t))}$ | Measures the sine component of the angular separation for the 7 primary moving bodies. |
-|  ✔ **Astrological Longitude Sine** | Astrological | N/A |${a_1 \sin(f_1λ_1(t))}$ ... ${a_7 \sin(f_1λ_1(t))}$ | Measures the cosine component of the angular separation for the 7 primary moving bodies. |
-|  ✔ **Price-Volume Strength Osc.** | Price-Volume | Close ($\mathbf{c_t}$) | ${\mathbf{Y_c}(t-i)}$ | Price-Volume strength on the Close price series. |
-|  ✔ **Price-Volume Strength Osc.** | Price-Volume | High ($\mathbf{h_t}$) | ${\mathbf{Y_h}(t-i)}$ | Price-Volume strength on the High price series. |
-|  ✔ **Price-Volume Strength Osc.** | Price-Volume | Low ($\mathbf{l_t}$) | ${\mathbf{Y_l}(t-i)}$ | Price-Volume strength on the Low price series. |
-|  ✔ **Average True Range %** | Volatility (Magnitude) | General (TR-based) | ${\mathbf{Atrp_{14}}(t-i)}$ | Overall volatility baseline for the model. |
-|  ✔ **Bollinger Band Width** | Volatility (Cycle) | Close ($\mathbf{c_t}$) | ${\mathbf{BBW_c}(t-i)}$ | Measures general volatility cycle over the closing price. |
-|  ✔ **Bollinger Band Width** | Volatility (Cycle) | High ($\mathbf{h_t}$) | ${\mathbf{BBW_h}(t-i)}$ | Volatility cycle specifically near **Resistance** (upper boundary). |
-|  ✔ **Bollinger Band Width** | Volatility (Cycle) | Low ($\mathbf{l_t}$) | ${\mathbf{BBW_l}(t-i)}$ | Volatility cycle specifically near **Support** (lower boundary). |
-|  ✔ **Realized Volatility** | Volatility (Magnitude) | Close ($\mathbf{c_t}$) | ${\mathbf{Rvo_c}(t-i)}$ | General magnitude signal of price movement. |
-|  ✔ **Realized Volatility** | Volatility (Magnitude) | High ($\mathbf{h_t}$) | ${\mathbf{Rvo_h}(t-i)}$ | **Magnitude** of movement specifically near $\uparrow$ resistance. |
-|  ✔ **Realized Volatility** | Volatility (Magnitude) | Low ($\mathbf{l_t}$) | ${\mathbf{Rvo_l}(t-i)}$ | **Magnitude** of movement specifically near $\downarrow$ support. |
-|  ✔ **Relative Volatility Index** | Volatility (Direction) | High ($\mathbf{h_t}$) | ${\mathbf{RVI_{14,h}}(t-i)}$ | **Directional Bias** (Up/Down strength) near $\uparrow$ resistance. |
-|  ✔ **Relative Volatility Index** | Volatility (Direction) | Low ($\mathbf{l_t}$) | ${\mathbf{RVI_{14,l}}(t-i)}$ | **Directional Bias** (Up/Down strength) near $\downarrow$ support. |
-|  ✔ **Relative Volume** | Price-Volume | General (Volume) | ${\mathbf{Rv}(t-i)}$ | Volume strength baseline, independent of price series. |
+Our first challenge is to findout the most performant subset from this table and the best model for predicting ${Y(t+1)}$. Later on we will introduce ${\hat Y(t+1)}$ in 
+the features set for the breaking gap estimator (${\hat G(t+1)}$).
 
+| Feature Name | Description | Notation |
+| --- | --- | ---  |
+| **Price-Time cos**        | In this document   | ${\cos(θ_1(t))}$ ... ${\cos(θ_4(t-1))}$ |
+| **Price-Time sin**        | In this document   | ${\sin(θ_1(t))}$ ... ${\sin(θ_4(t-1))}$ |
+| **Average True Range %** | Code: **market_module.py**/add_average_true_range_percentage | ${\mathbf{Atrp_{14}}(t-i)}$ |
+| **Bollinger Band Width for Close** | Code: **market_module.py**/add_bollinger_bands_width | ${\mathbf{BBW_c}(t-i)}$ |
+| **Bollinger Band Width for High** | Code: **market_module.py**/add_bollinger_bands_width | ${\mathbf{BBW_h}(t-i)}$ |
+| **Bollinger Band Width for Low** | Code: **market_module.py**/add_bollinger_bands_width | ${\mathbf{BBW_l}(t-i)}$ |
+| **Realized Volatility for Close** | Code: **market_module.py**/add_realized_volatility  | ${\mathbf{Rvo_c}(t-i)}$ |
+| **Realized Volatility for High** | Code: **market_module.py**/add_realized_volatility  | ${\mathbf{Rvo_h}(t-i)}$ |
+| **Realized Volatility for Close** | Code: **market_module.py**/add_realized_volatility  | ${\mathbf{Rvo_l}(t-i)}$ |
+| **Relative Volatility Index** | Code: **market_module.py**/add_relative_volatility_index | ${\mathbf{RVI_{14,h}}(t-i)}$ |
+| **Relative Volatility Index** | Code: **market_module.py**/add_relative_volatility_index | ${\mathbf{RVI_{14,l}}(t-i)}$ |
+| **Relative Volume** | Code: **market_module.py**/add_relative_volume |  ${\mathbf{Rv}(t-i)}$ |
+| **Fast Trend Run**  | In this document | ${R_{f}(t)}$ |
+| **Slow Trend Run**  | In this document | ${R_{s}(t)}$ |
+| **The Structural Direction**| In this Document | ${S_d(t)}$ 
 
 The design of this input table is predicated on the statistical validity of W.D. Gann's theories.
+
+## The Closest Extreme ##
+
+These concepts refer to finding the nearest prior occurrence of a high or low price that is **structurally higher** or **lower** than the current price at ${t}$. The search is always backward in time.
+
+### Closest Higher High (${h_↑(t)}$)
+
+* **Definition:** The higher high closest to the current high price $h(t)$ in the **OHLC** bar at time ${t}$.
+* **Formula:** Finds the $h(t-i)$ that is strictly greater than $h(t)$ while minimizing the lookback period ${i}$.
+
+${h_↑(t) = h(t-i_{\max(h)})}$ where ${i_{{\max(h)}} = \min \{j <\in \mathbb{Z}^+> \mid h(t-j) > h(t)\}}$
+
+### Closest Lower High (${h_↓(t)}$)
+
+* **Definition:** The lower high closest to the current high price $h(t)$ in the **OHLC** bar at time ${t}$.
+* **Formula:** Finds the $h(t-i)$ that is strictly less than $h(t)$ while minimizing the lookback period ${i}$.
+
+${h_↓(t) = h(t-i_{\min(h)})}$ where ${i_{\min(h)} = \min \{j \in \mathbb{Z}^+ \mid h(t-j) < h(t)\}}$
+
+### Closest Higher Low (${l_↑(t)}$)
+
+* **Definition:** The higher low closest to the current low price $l(t)$ in the **OHLC** bar at time ${t}$.
+* **Formula:** Finds the $l(t-i)$ that is strictly greater than $l(t)$ while minimizing the lookback period ${i}$.
+
+${l_↑(t) = l(t-i_{\max(l)})}$ where ${i_{\max(l)} = \min \{j \in \mathbb{Z}^+ \mid l(t-j) > l(t)\}}$
+
+### Closest Lower Low (${l_↓(t)}$)
+
+* **Definition:** The lower low closest to the current low price $l(t)$ in the **OHLC** bar at time $t$.
+* **Note:** The document uses the notation ${h_↓(t)}$ for this indicator. For consistency with the other low-price indicators, the more logical notation $l_↓(t)$ is used here, but the value is based on the comparison of low prices.
+* **Formula:** Finds the $l(t-i)$ that is strictly less than $l(t)$ while minimizing the lookback period ${i}$.
+
+${l_↓(t) = l(t-i_{\min(l)})}$ where ${i_{\min(l)} = \min \{j \in \mathbb{Z}^+ \mid l(t-j) < l(t)\}}$
+
+## The Price-Time Angles ##
+
+Consider these definitions
+
+1. ${B(t) = \max(t-i_{\max(h)},\space t-i_{\min(h)},\space t-i_{\max(l)},\space t-i_{\max(l)})}$ , 
+2. ${b(t) = \{\frac{t-i_{\max(h)}}{B(t)}, \space \frac{t-i_{\min(h)}}{B(t)}, \space \frac{t-i_{\max(l)}}{B(t)}, \space \frac{t-i_{\max(l)}}{B(t)}\}}$, 
+3. ${C(t) = \max(h(t)-h_↑(t),\space h(t)-h_↓(t),\space l_↑(t)-l(t),\space l_↓(t)-l(t))}$ and
+4. ${c(t) = \{\frac{h(t)-h_↑(t)}{C(t)}, \space \frac{h(t)-h_↓(t)}{C(t)}, \space \frac{l_↑(t)-l(t)}{C(t)}, \space \frac{l_↓(t)-l(t)}{C(t)}\}}$.
+
+If we divide pairwise ${b_c(t)}$ by ${b_k(t)}$ and then apply ${\mathbf{arctan}}$ function to every element in the resulting list, we get four **price-time angles** ${θ_1(t)}$, ${θ_2(t)}$, ${θ_3(t)}$ and ${θ_4(t)}$ ruling t time ${t}$.
+
 
 # The Swing Ratio ${S(t)}$ #
 Consider the bar sequence ${\mathbf{OHLC}}$ = ${(o_{t-n}, h_{t-n}, l_{t-n}, c_{t-n}),...,(o_t, h_t, l_t, c_t)}$ up to the current bar ${t}$; it's assumed that this sequence is longer than 2 bars. 
@@ -153,11 +200,11 @@ ${P_↓(t+1) = \mathbf{min}(1,\frac {|S_s(t) + S_f(t)|} {2})}$
 # Estimating G(t+1) #
 With ${G(t+1)}$ defined as the quantitative measure of the structural violation's magnitude, our next step is to engineer the DNN input features required for its prediction. The input table is
 
-| ${Y_c(t-i)}$     | ${Y_h(t-i)}$     | ${Y_l(t-i)}$     | ${L_c(t-i)}$     | ${L_h(t-i)}$     | ${L_l(t-i)}$     |${S_d(t-i)}$    |${\mathbf{Atrp_{14}}(t-i)}$    |
-|------------------|------------------|------------------|------------------|------------------|------------------|----------------|-------------------------------|
-| ${Y_c(t)}$       | ${Y_h(t)}$       | ${Y_l(t)}$       | ${L_c(t)}$       | ${L_h(t)}$       | ${L_l(t)}$       |${S_d(t)}$      |${\mathbf{Atrp_{14}}(t)}$      |
-| ...              | ...              | ...              | ...              | ...              | ...              |...             |...                            |
-| ${Y_c(t-(n-1))}$ | ${Y_h(t-(n-1))}$ | ${Y_l(t-(n-1))}$ | ${L_c(t-(n-1))}$ | ${L_h(t-(n-1))}$ | ${L_l(t-(n-1))}$ |${S_d(t-(n-1))}$|${\mathbf{Atrp_{14}}(t-(n-1))}$|
+| ${Y_c(t-i)}$     | ${Y_h(t-i)}$     | ${Y_l(t-i)}$     | ${\hat Y_c(t-i)}$    | ${\hat Y_h(t-i)}$     | ${\hat Y_l(t-i)}$|${S_d(t-i)}$    |${\mathbf{Atrp_{14}}(t-i)}$    |
+|------------------|------------------|------------------|----------------------|-----------------------|------------------|----------------|-------------------------------|
+| ${Y_c(t)}$       | ${Y_h(t)}$       | ${Y_l(t)}$       | ${\hat Y_c(t)}$      | ${\hat Y_h(t)}$       | ${\hat Y_l(t)}$  |${S_d(t)}$      |${\mathbf{Atrp_{14}}(t)}$      |
+| ...              | ...              | ...              | ...                  | ...                   | ...              |...             |...                            |
+| ${Y_c(t-(n-1))}$ | ${Y_h(t-(n-1))}$ | ${Y_l(t-(n-1))}$ |${\hat Y_c(t-(n-1))}$ | ${\hat Y_h(t-(n-1))}$ | ${L_l(t-(n-1))}$ |${S_d(t-(n-1))}$|${\mathbf{Atrp_{14}}(t-(n-1))}$|
 
 where ${i}$ ranges from ${0}$ to ${n-1}$. Additionally ${Y_c(t)}$, ${Y_h(t)}$, ${Y_l(t)}$ are ${Y(t)}$ values calculated for **close**, **high** and **low** prices respectively.
 
