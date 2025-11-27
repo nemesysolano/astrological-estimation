@@ -1,5 +1,4 @@
 import os
-import random
 from market import load_market_data
 import pandas as pd 
 import tensorflow as tf
@@ -10,6 +9,7 @@ from itertools import combinations
 from .utils import clean_nan_and_inf
 
 Dense, Dropout, BatchNormalization, Concatenate, Input, Reshape = ( tf.keras.layers.Dense, tf.keras.layers.Dropout, tf.keras.layers.BatchNormalization, tf.keras.layers.Concatenate, tf.keras.layers.Input, tf.keras.layers.Reshape)
+
 Sequential =  tf.keras.Sequential
 Model = tf.keras.models.Model
 AdamW = tf.keras.optimizers.AdamW
@@ -21,11 +21,12 @@ TimeDistributed = tf.keras.layers.TimeDistributed
 Conv1D = tf.keras.layers.Conv1D
 
 
-angular_indicators = sum([[f"cos_θ{i}", f"sin_θ{i}"] for i in range(1, 2)], [])
+angular_indicators = sum([[f"cos_θ{i}", f"sin_θ{i}"] for i in range(1, 5)], [])
 structural_indicators = ["Y_Low", "Y_High", "Y_Close", "structural_direction", "slow_trend_run", "fast_trend_run"] # ,
 oscilator_indicators = ["ATRP", "BBW_Low","BBW_High","BBW_Close","RVO_Low","RVO_High","RVO_Close","RV", "RVI_Low","RVI_High","RVI_Close"]
 # --- Define Model Parameters (Use same values as before) ---
 TIMESTEPS = 14  # n, the lookback period (e.g., 14 bars)
+tf.random.set_seed(42) # Initiate with the same seed
 
 def pct_difference(a, b):
     return 2*(b - a) / (a+b)
@@ -38,9 +39,9 @@ def define_Y(historical_data, price):
 #Y_High", "Y_Close"
 
 def define_gann_X(historical_data, index):
-    features = [*angular_indicators, *structural_indicators, *oscilator_indicators] 
+#   features = [*angular_indicators, *structural_indicators, *oscilator_indicators] 
 #   features = [*angular_indicators,                         *oscilator_indicators]
-#   features = [*angular_indicators, *structural_indicators                       ] 
+    features = [*angular_indicators, *structural_indicators                       ] 
     return historical_data.loc[index, features]
     
 def define_linear_X(historical_data, index):
