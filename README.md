@@ -25,6 +25,7 @@ the features set for the breaking gap estimator (${\hat G(t+1)}$).
 | --- | --- | ---  |
 | **Price-Time cos**        | In this document   | ${\cos(θ_1(t))}$ ... ${\cos(θ_4(t-1))}$ |
 | **Price-Time sin**        | In this document   | ${\sin(θ_1(t))}$ ... ${\sin(θ_4(t-1))}$ |
+| **Fourier**    | In this document   | ${\cos(θ_1(t)) +\sin(θ_1(t))+...+\cos(θ_4(t)) +\sin(θ_4(t))}$ |
 | **Average True Range %** | Code: **market_module.py**/add_average_true_range_percentage | ${\mathbf{Atrp_{14}}(t-i)}$ |
 | **Bollinger Band Width for Close** | Code: **market_module.py**/add_bollinger_bands_width | ${\mathbf{BBW_c}(t-i)}$ |
 | **Bollinger Band Width for High** | Code: **market_module.py**/add_bollinger_bands_width | ${\mathbf{BBW_h}(t-i)}$ |

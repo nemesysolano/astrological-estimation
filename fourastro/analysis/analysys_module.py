@@ -1,4 +1,6 @@
 import os
+# Example import change (adjust path as needed)
+from fourastro.analysis.metrics import estimate_polarization_params, get_polarization_loss, magnitude_weighted_loss
 from market import load_market_data
 import pandas as pd 
 import tensorflow as tf
@@ -19,10 +21,10 @@ Dropout = tf.keras.layers.Dropout
 l2 = tf.keras.regularizers.l2
 TimeDistributed = tf.keras.layers.TimeDistributed
 Conv1D = tf.keras.layers.Conv1D
-
+AdamW = tf.keras.optimizers.AdamW
 
 angular_indicators = sum([[f"cos_θ{i}", f"sin_θ{i}"] for i in range(1, 5)], [])
-structural_indicators = ["Y_Low", "Y_High", "Y_Close", "structural_direction", "slow_trend_run", "fast_trend_run"] # ,
+structural_indicators = ["Y_Low", "Y_High", "Y_Close", "structural_direction"] # , "slow_trend_run", "fast_trend_run"
 oscilator_indicators = ["ATRP", "BBW_Low","BBW_High","BBW_Close","RVO_Low","RVO_High","RVO_Close","RV", "RVI_Low","RVI_High","RVI_Close"]
 # --- Define Model Parameters (Use same values as before) ---
 TIMESTEPS = 14  # n, the lookback period (e.g., 14 bars)
@@ -32,23 +34,36 @@ def pct_difference(a, b):
     return 2*(b - a) / (a+b)
 
 def define_Y(historical_data, price):    
-    index = historical_data.index 
-    y = pd.Series(np.sign(historical_data[price]), index=index).shift(-1)
-    return y
-
-#Y_High", "Y_Close"
-
-def define_gann_X(historical_data, index):
-#   features = [*angular_indicators, *structural_indicators, *oscilator_indicators] 
-#   features = [*angular_indicators,                         *oscilator_indicators]
-    features = [*angular_indicators, *structural_indicators                       ] 
-    return historical_data.loc[index, features]
+    return historical_data[price].shift(-1)
     
-def define_linear_X(historical_data, index):
-    features = [*structural_indicators, *oscilator_indicators]
+def define_gann_X(historical_data, index):
+    features = [*angular_indicators, *oscilator_indicators] 
     return historical_data.loc[index, features]
 
-def create_convlstm_Y_gann_model(output_name, n_features):
+    # fourier_terms = historical_data[angular_indicators].sum(axis = 1)
+    # features = [*oscilator_indicators, *structural_indicators] 
+    # X = pd.DataFrame(historical_data.loc[index, features])
+        
+def define_linear_X(historical_data, index):
+    """
+    Creates a DataFrame with time-lagged features for Y_Close, Y_High, and Y_Low.
+    Each column Y_Close_k will contain the close price from k days ago.
+    """
+    X = pd.DataFrame(index=historical_data.index)
+    rvo_high = historical_data.loc[index, 'RVO_High']
+    rvo_low = historical_data.loc[index, 'RVO_Low']
+    X["structural_direction"] = historical_data["structural_direction"]
+
+    for k in range(0, int(len(angular_indicators) / 2), 2): 
+        X[angular_indicators[k]] = historical_data.loc[index, angular_indicators[k]] * rvo_high
+        X[angular_indicators[k+1]] = historical_data.loc[index, angular_indicators[k]] * rvo_low        
+    return X
+
+
+
+
+
+def create_convlstm_Y_gann_model(Y_train, output_name, n_features):
     # Define the number of features for each input branch
     n_angular_features = len(angular_indicators)
     n_structural_features = len(structural_indicators)
@@ -84,44 +99,46 @@ def create_convlstm_Y_gann_model(output_name, n_features):
     output = Dense(units=1, activation='tanh', name=output_name)(dropout2)
 
     model = Model(inputs=main_input, outputs=output, name=f"Functional_LSTM_for_{output_name}")
+
+    weight, width = estimate_polarization_params(Y_train) 
+    loss_metric = get_polarization_loss(weight, width)
     model.compile(
         optimizer='adam',
-        loss='mae',
-        metrics=['mae']
+        loss=loss_metric,
+        metrics=['mae', loss_metric]
     )
 
     return model
 
-def create_convlstm_Y_linear_model(output_name, n_features):
-    """
-    Creates a Conv1D-LSTM hybrid Keras model to predict a Y component.
-    """
+def create_convlstm_Y_tanh_model(Y_train_data, output_name, n_features):
     model = Sequential(name=f"LSTM_Predictor_for_{output_name}")
+    timesteps = 14
+    # Set seed for reproducibility as per previous pattern
+    tf.random.set_seed(42)
+    
+    # 1. LSTM Layer (Sequential Data Processing)
+    # The input shape is (TIMESTEPS, n_features)
+    model.add(LSTM(units=128, return_sequences=False, kernel_regularizer=None, input_shape=(timesteps, n_features)))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.075))
 
-    # 1. LSTM Layer: Sequential Learning on the extracted features
-    # The output from Conv1D (which is now shorter in the time dimension) is fed here.
-    model.add(
-        LSTM(
-            units=64, # Number of LSTM units
-            return_sequences=False # We only need the state from the last timestep
-        )
-    )
-    model.build(input_shape=(None, TIMESTEPS, n_features)) # Explicitly build the model
+    # 2. Dense Layer (Feature Combination)
+    model.add(Dense(units=128, activation='relu', kernel_regularizer=None)) 
+    model.add(BatchNormalization())
+    model.add(Dropout(0.075))
 
-    # 2. Dropout Layer
-    model.add(Dropout(0.3))
-
-    # 3. Dense Layer
-    model.add(Dense(units=32, activation='relu'))
-    model.add(Dropout(0.3))
-
-    # 4. Output Layer: Single unit with 'tanh' activation (-1 to +1 range)
+    # 3. Output Layer (Tanh activation forces output between -1 and 1)
     model.add(Dense(units=1, activation='tanh', name=output_name))
 
-    # 5. Compile the model
+    # --- Dynamic Loss Compilation ---
+    weight, width = estimate_polarization_params(Y_train_data) 
+    
+    # Log the determined parameters
+    print(f"Model: {output_name} | Polarization Loss Parameters: Weight={weight:.4f}, Width={width:.4f}")
+    
     model.compile(
-        optimizer='adam',
-        loss='mae',
+        optimizer=AdamW(learning_rate=1e-3), 
+        loss=magnitude_weighted_loss,
         metrics=['mae']
     )
 
@@ -185,6 +202,22 @@ def create_sequences(X_data, Y_data, time_steps=1):
         Ys.append(Y_data[i + time_steps])
     return np.array(Xs), np.array(Ys)
 
+def discretize_predictions(y_pred, threshold=0.3):
+    """
+    Snaps predictions to -1, 0, or 1 based on a confidence threshold.
+    """
+    results = []
+    for p in y_pred:
+        if p > threshold:
+            results.append(1)
+        elif p < -threshold:
+            results.append(-1)
+        else:
+            results.append(0)
+    return np.array(results)
+
+# In your analyze function:
+# Y_pred = discretize_predictions(best_model.predict(X_test_reshaped), threshold=0.3)
 
 def analyze(ticker, predictor, mode):
     define_X = define_gann_X if mode == 'gann' else define_linear_X
@@ -192,8 +225,8 @@ def analyze(ticker, predictor, mode):
      X_test_scaled, Y_test_scaled, X_scaler, Y_scaler) = create_datasets(ticker, define_X, predictor)
     
     n_features = X_train_scaled.shape[1]
-    model_factory = create_convlstm_Y_gann_model if mode == 'gann' else create_convlstm_Y_linear_model
-    model =  model_factory(f"Y_{predictor}", n_features)
+    model_factory = create_convlstm_Y_gann_model if mode == 'gann' else create_convlstm_Y_tanh_model
+    model =  model_factory(Y_train_scaled, f"Y_{predictor}", n_features)
 
     # Reshape X and Y data for Conv1D-LSTM input (samples, timesteps, features)
     X_train_reshaped, Y_train_reshaped = create_sequences(X_train_scaled, Y_train_scaled, TIMESTEPS)
@@ -206,8 +239,15 @@ def analyze(ticker, predictor, mode):
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_best_only=True,
-        monitor='val_mae',
+        monitor='mae', # mae'val_magnitude_weighted_loss',        
         mode='min')
+
+    early_stopping_callback = tf.keras.callbacks.EarlyStopping(
+        monitor= 'mae', # val_magnitude_weighted_loss',
+        patience=50,
+        mode='min',
+        restore_best_weights=True
+    )
 
     # FIX: Use Y_train_reshaped and Y_val_reshaped as targets for model.fit
     model.fit(
@@ -216,42 +256,38 @@ def analyze(ticker, predictor, mode):
         epochs=100, 
         batch_size=32, 
         validation_data=(X_val_reshaped, Y_val_reshaped), # Corrected validation target array
-        callbacks=[model_checkpoint_callback]
+        callbacks=[model_checkpoint_callback, early_stopping_callback]
     )
     
     # Load the best model
     best_model = tf.keras.models.load_model(checkpoint_filepath)
 
     # Evaluate the model on the test set
-    loss, mae = best_model.evaluate(X_test_reshaped, Y_test_reshaped, verbose=0)
-    print(f"Test Loss: {loss:.4f}")
-    print(f"Test MAE: {mae:.4f}")
+    mae, mse, = best_model.evaluate(X_test_reshaped, Y_test_reshaped, verbose=0)
 
     # Make predictions on the test set
     Y_pred = best_model.predict(X_test_reshaped)
     Y_actual = Y_test_reshaped
 
-    Y_pred = np.array([int(1) if p > 0 else (int(-1) if p < 0 else int(0)) for p in Y_pred])
-    Y_actual = np.array([int(1) if a > 0 else (int(-1) if a < 0 else int(0)) for a in Y_actual])
-    y_count = np.sum(Y_pred == Y_actual)
+    # Lower this to 0.1 to see if the variances come back to life
     Y_actual_var = np.var(Y_actual)
     Y_pred_var = np.var(Y_pred)
-    y_accuracy = y_count / len(Y_pred)
+
+    variance_percentage_diff = Y_pred_var / Y_actual_var
 
     # --- Results Summary ---
     
     output_file = os.path.join(os.getcwd(), "test-results", f"{predictor}_{mode}.md")
     mode = 'a' if os.path.exists(output_file) else 'w'
-    headers = ["Ticker", "Test Loss (MSE)", "Test Mean Absolute Error", "Variance of Actual", "Variance of Predicted", "Accuracy"]
+    headers = ["Ticker", "Loss", "Test Mean Absolute Error", "Variance of Actual", "Variance of Predicted", "[Var Pred.] / [Var Act.]"]
 
     with open(output_file, mode) as f:
-        values = [ticker, f"{loss:.8f}", f"{mae:.8f}", f"{Y_actual_var:.8f}", f"{Y_pred_var:.8f}", f"{y_accuracy:.6f}"]
+        values = [ticker, f"{mse:.8f}", f"{mae:.8f}", f"{Y_actual_var:.8f}", f"{Y_pred_var:.8f}", f"{variance_percentage_diff:.2f}"]
 
         if mode == 'w':
             # Determine column widths for formatting
             col_widths = [max(len(str(h)), len(str(v))) for h, v in zip(headers, values)]
             f.write("| " + " | ".join([h.ljust(w) for h, w in zip(headers, col_widths)]) + " |\n")
             f.write("|-" + "-|-".join(["-" * w for w in col_widths]) + "-|\n")
-
         col_widths = [max(len(h), len(v)) for h, v in zip(headers, values)]
         f.write("| " + " | ".join([v.ljust(w) for v, w in zip(values, col_widths)]) + " |\n")

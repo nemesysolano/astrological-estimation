@@ -15,7 +15,7 @@ def add_price_volume_strength(historical_data, price):
     price_change_ratio = (p_t - p_t_minus_1) / (p_t + p_t_minus_1)
 
     volume_ratio = v_t / v_t_minus_1
-    capped_volume_ratio = np.minimum(1, volume_ratio) # np.minimum(1, volume_ratio)
+    capped_volume_ratio = np.minimum(1, volume_ratio)
     y_t = price_change_ratio * capped_volume_ratio    
 
     historical_data[f'Y_{price}'] =  y_t
